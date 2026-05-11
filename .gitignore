@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.log
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.env
+.idea/
+.vscode/
+
+# 本地/历史测试副本，不上传 GitHub
+2024_test_01-07/
