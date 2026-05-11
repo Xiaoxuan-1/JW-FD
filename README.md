@@ -84,4 +84,4 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 
 ## 引用
 
-若使用本仓库进行研究，请根据你的论文或数据政策添加适当引用（NOAA、SDO/HMI 等）。
+若使用本仓库进行研究，请根据你的论文或数据政策添加适当引用（JW-FD）。
