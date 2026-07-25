@@ -11,3 +11,13 @@ venv/
 
 # 本地/历史测试副本，不上传 GitHub
 2024_test_01-07/
+
+# LaTeX build artifacts (keep .tex / figures under version control)
+paper/**/*.aux
+paper/**/*.out
+paper/**/*.bbl
+paper/**/*.blg
+paper/**/*.synctex.gz
+paper/**/*.fdb_latexmk
+paper/**/*.fls
+paper/**/*.pdf

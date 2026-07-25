@@ -1,0 +1,37 @@
+% Figure 2: Pre-eruption label window semantics
+\begin{figure}[H]
+\centering
+\small
+\begin{tikzpicture}[
+  x=1.0cm, y=0.65cm,
+  lbl/.style={font=\scriptsize},
+  arr/.style={-{Stealth[length=2mm]}, semithick}
+]
+  \draw[thick,->] (0,0) -- (12.2,0) node[right, lbl] {time};
+
+  \foreach \x/\t in {0/{$t_0$}, 4/{$\mathrm{Begin}-h$}, 8/{$\mathrm{Begin}$}, 11/{$t_1$}} {
+    \draw (\x,0.07) -- (\x,-0.07);
+    \node[lbl, below=3pt] at (\x,0) {\t};
+  }
+
+  \draw[dashed, gray!60] (8,0.12) -- (8,1.05);
+
+  \fill[blue!12] (4,0.18) rectangle (8,0.95);
+  \node[lbl, blue!60!black, align=center] at (6,0.56)
+    {positive window\\$[\mathrm{Begin}-h,\,\mathrm{Begin})$};
+
+  \node[lbl, gray] at (2.0,0.56) {label = 0};
+  \node[lbl, gray, align=center] at (10.0,0.56) {label = 0\\{\scriptsize (post-eruption)}};
+
+  \draw[arr, red!70!black] (2.2,1.55) -- (2.2,0.18);
+  \node[lbl, red!70!black, above=2pt] at (2.2,1.55) {magnetogram at $t$};
+
+  \draw[arr, green!50!black] (6.0,1.85) -- (6.0,0.95);
+  \node[lbl, green!50!black, above=2pt] at (6.0,1.85) {positive if flare $\geq\tau$};
+
+  \draw[arr, orange!70!black] (10.2,1.55) -- (10.2,0.18);
+  \node[lbl, orange!70!black, above=2pt] at (10.2,1.55) {never positive};
+\end{tikzpicture}
+\caption{Strict pre-eruption labeling semantics for horizon~$h$. A magnetogram observed at time~$t$ receives a positive binary label for threshold~$\tau$ only if $t \in [\mathrm{Begin}-h,\,\mathrm{Begin})$ and the matched GOES class meets or exceeds~$\tau$. Observations at or after $\mathrm{Begin}$ (dashed line) are excluded, distinguishing forecasting from nowcasting.}
+\label{fig:label_timeline}
+\end{figure}
