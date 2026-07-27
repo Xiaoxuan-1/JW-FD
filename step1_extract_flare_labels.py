@@ -9,6 +9,7 @@
 import os
 import re
 import csv
+import argparse
 from multiprocessing import Pool
 from tqdm import tqdm
 from config import PARAMS, get_path, get_events_folders
@@ -102,10 +103,32 @@ def process_single_event_file(file_path):
     
     return results
 
-def extract_flare_labels():
+def extract_flare_labels(skip_existing=False):
     """从事件文件中提取耀斑标签（支持多年份，支持多进程）"""
     logger = setup_logging('step1_flare_labels')
     logger.info("开始提取耀斑标签（多年份数据）...")
+    if skip_existing:
+        logger.info("增量模式: 保留已有记录，仅追加新耀斑")
+        print("增量模式: 保留已有记录，仅追加新耀斑")
+
+    output_csv_path = get_path('flare_labels')
+    existing_results = []
+    existing_keys = set()
+    if skip_existing and os.path.exists(output_csv_path):
+        with open(output_csv_path, mode='r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                rec = [
+                    row['AR_Number'],
+                    row['Begin_Time'],
+                    row['Max_Time'],
+                    row['End_Time'],
+                    row['Flare_Class'],
+                ]
+                existing_results.append(rec)
+                existing_keys.add(tuple(rec))
+        print(f"已有耀斑记录: {len(existing_results)} 条")
+        logger.info(f"已有耀斑记录: {len(existing_results)} 条")
     
     # 获取所有年份的events文件夹
     events_folders = get_events_folders()
@@ -162,24 +185,56 @@ def extract_flare_labels():
         for file_path in tqdm(event_files, desc="提取耀斑标签"):
             results = process_single_event_file(file_path)
             all_results.extend(results)
-    
+
+    new_results = []
+    if skip_existing:
+        for rec in all_results:
+            key = tuple(rec)
+            if key not in existing_keys:
+                new_results.append(rec)
+                existing_keys.add(key)
+        all_results = existing_results + new_results
+    else:
+        new_results = all_results
+
     # 按峰值时间排序
     all_results.sort(key=lambda x: x[2])
-    
+
     # 保存到CSV文件
-    output_csv_path = get_path('flare_labels')
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
         # 写入表头
         writer.writerow(['AR_Number', 'Begin_Time', 'Max_Time', 'End_Time', 'Flare_Class'])
         # 写入数据
         writer.writerows(all_results)
-    
-    logger.info(f'提取完成，共{len(all_results)}条耀斑记录')
+
+    logger.info(
+        f'提取完成，共{len(all_results)}条耀斑记录'
+        + (f'（已有 {len(existing_results)}，新增 {len(new_results)}）' if skip_existing else '')
+    )
     logger.info(f'保存到: {output_csv_path}')
-    print(f'\n步骤1完成: 提取了{len(all_results)}条耀斑标签')
+    if skip_existing:
+        print(
+            f'\n步骤1完成: 共 {len(all_results)} 条耀斑标签 '
+            f'(已有 {len(existing_results)}，新增 {len(new_results)})'
+        )
+    else:
+        print(f'\n步骤1完成: 提取了{len(all_results)}条耀斑标签')
     print(f'格式: AR编号, 开始时间, 峰值时间, 结束时间, 耀斑等级')
     print(f'保存到: {output_csv_path}')
+    return {
+        'existing': len(existing_results) if skip_existing else 0,
+        'appended': len(new_results),
+        'total': len(all_results),
+        'output_csv': output_csv_path,
+    }
 
 if __name__ == '__main__':
-    extract_flare_labels()
+    parser = argparse.ArgumentParser(description='Step1: 从 NOAA events 提取耀斑标签')
+    parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        help='保留已有 flare_labels.csv，仅追加新记录',
+    )
+    args = parser.parse_args()
+    extract_flare_labels(skip_existing=args.skip_existing)

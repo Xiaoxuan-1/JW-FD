@@ -11,7 +11,7 @@ import imageio.v2 as imageio
 from tqdm import tqdm
 from multiprocessing import Pool
 from config import PARAMS, START_YEAR, END_YEAR, year_in_range, get_path
-from utils import setup_logging, extract_year_from_filename
+from utils import setup_logging, extract_year_from_filename, should_skip_movie
 
 def make_movie_worker(args):
     """
@@ -79,7 +79,7 @@ def make_movie_worker(args):
         return ar_name, False, 0, 0, output_path
 
 
-def make_movie(ar_folder, output_path, fps=60):
+def make_movie(ar_folder, output_path, fps=60, skip_existing=False):
     """
     为单个活动区域生成MP4视频（保留用于单独调用）
 
@@ -87,6 +87,7 @@ def make_movie(ar_folder, output_path, fps=60):
         ar_folder: 活动区域图像文件夹路径
         output_path: 输出视频路径
         fps: 帧率，默认60帧/秒
+        skip_existing: 增量模式，MP4 比最新 PNG 新则跳过
     """
     ar_name = os.path.basename(ar_folder)
     if not os.path.isdir(ar_folder):
@@ -96,18 +97,26 @@ def make_movie(ar_folder, output_path, fps=60):
     if not filtered:
         print(f"年份范围 [{START_YEAR}, {END_YEAR}] 内无 PNG 帧，跳过 AR{ar_name}")
         return False
+    png_paths = [os.path.join(ar_folder, f) for f in filtered]
+    if skip_existing and should_skip_movie(output_path, png_paths):
+        print(f"  AR{ar_name}: MP4 已是最新，跳过")
+        return True
     _, success, _, _, _ = make_movie_worker((ar_name, ar_folder, filtered, output_path, fps))
     return success
 
-def make_all_movies(fps=60):
+def make_all_movies(fps=60, skip_existing=False):
     """
     为所有活动区域生成视频（多进程优化版）
     
     Args:
         fps: 帧率，默认60帧/秒
+        skip_existing: 增量模式，MP4 比最新 PNG 新则跳过
     """
     logger = setup_logging('step6_make_movie')
     logger.info("开始生成活动区域演化视频...")
+    if skip_existing:
+        logger.info("增量模式: MP4 比文件夹内最新 PNG 新则跳过")
+        print("增量模式: MP4 比文件夹内最新 PNG 新则跳过")
     
     png_folder = get_path('png_600')
     output_folder = get_path('movies')
@@ -136,6 +145,7 @@ def make_all_movies(fps=60):
 
     # 准备任务列表（每个 AR 只包含年份范围内的 PNG）
     tasks = []
+    skipped_count = 0
     for ar_name in ar_folders:
         ar_path = os.path.join(png_folder, ar_name)
         all_png = sorted([f for f in os.listdir(ar_path) if f.endswith('.png')])
@@ -143,16 +153,26 @@ def make_all_movies(fps=60):
         if not filtered:
             continue
         output_path = os.path.join(output_folder, f"AR{ar_name}_evolution.mp4")
+        if skip_existing:
+            png_paths = [os.path.join(ar_path, f) for f in filtered]
+            if should_skip_movie(output_path, png_paths):
+                skipped_count += 1
+                continue
         tasks.append((ar_name, ar_path, filtered, output_path, fps))
 
-    ar_msg = f"年份过滤 [{START_YEAR}, {END_YEAR}]：处理 {len(tasks)}/{len(ar_folders)} 个 AR（目录内有范围内帧）"
+    ar_msg = (
+        f"年份过滤 [{START_YEAR}, {END_YEAR}]：处理 {len(tasks)}/{len(ar_folders)} 个 AR"
+        f"（目录内有范围内帧）"
+    )
+    if skip_existing:
+        ar_msg += f"，跳过 {skipped_count} 个已最新 MP4"
     print(ar_msg)
     logger.info(ar_msg)
 
     if len(tasks) == 0:
-        print("没有活动区域在年份范围内包含 PNG，退出")
-        logger.warning("没有活动区域在年份范围内包含 PNG")
-        return
+        print(f"步骤6完成: 无需生成 (跳过 {skipped_count} 个)")
+        logger.info(f"步骤6完成: 无需生成 (跳过 {skipped_count} 个)")
+        return {'generated': 0, 'skipped': skipped_count, 'failed': 0}
     
     # 多进程或单进程处理
     if PARAMS['use_multiprocess'] and len(tasks) > 1:
@@ -173,6 +193,7 @@ def make_all_movies(fps=60):
     
     # 统计结果
     success_count = 0
+    failed_count = 0
     for ar_name, success, png_count, duration, output_path in results:
         if success:
             print(f"  AR{ar_name}: {png_count}帧, 时长{duration:.1f}秒 -> {output_path}")
@@ -181,13 +202,25 @@ def make_all_movies(fps=60):
         else:
             print(f"  AR{ar_name}: 生成失败")
             logger.warning(f"AR{ar_name}: 生成失败")
-    
+            failed_count += 1
+
     print("-" * 50)
-    print(f"步骤6完成: 成功生成 {success_count}/{len(tasks)} 个视频")
+    print(
+        f"步骤6完成: 成功生成 {success_count}/{len(tasks)} 个视频"
+        + (f"，跳过 {skipped_count} 个" if skip_existing else "")
+    )
     print(f"视频保存在: {output_folder}")
 
-    logger.info(f"成功生成 {success_count}/{len(tasks)} 个视频")
+    logger.info(
+        f"成功生成 {success_count}/{len(tasks)} 个视频"
+        + (f"，跳过 {skipped_count} 个" if skip_existing else "")
+    )
     logger.info(f"视频保存在: {output_folder}")
+    return {
+        'generated': success_count,
+        'skipped': skipped_count,
+        'failed': failed_count,
+    }
 
 if __name__ == '__main__':
     import argparse
@@ -195,6 +228,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='生成活动区域演化视频')
     parser.add_argument('--fps', type=int, default=60, help='帧率 (默认: 60)')
     parser.add_argument('--ar', type=str, default=None, help='指定活动区域编号 (如: 3534)')
+    parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        help='MP4 比文件夹内最新 PNG 新则跳过（增量补数）',
+    )
     
     args = parser.parse_args()
     
@@ -212,8 +250,8 @@ if __name__ == '__main__':
             output_path = os.path.join(output_folder, f"AR{args.ar}_evolution.mp4")
             
             print(f"生成活动区域 AR{args.ar} 的演化视频...")
-            if make_movie(ar_path, output_path, args.fps):
+            if make_movie(ar_path, output_path, args.fps, skip_existing=args.skip_existing):
                 print(f"视频已保存: {output_path}")
     else:
         # 生成所有活动区域的视频
-        make_all_movies(fps=args.fps)
+        make_all_movies(fps=args.fps, skip_existing=args.skip_existing)

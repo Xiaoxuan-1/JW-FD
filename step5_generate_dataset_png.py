@@ -5,6 +5,7 @@
 输出: CSV数据集文件
 """
 
+import argparse
 import os
 import gc
 import csv
@@ -25,16 +26,38 @@ from config import (
     get_output_suffix,
     get_prediction_hours_list,
 )
-from utils import setup_logging, compare_labels, label_meets_threshold, extract_year_from_filename
+from utils import (
+    setup_logging,
+    compare_labels,
+    label_meets_threshold,
+    extract_year_from_filename,
+    ensure_directory,
+    load_existing_csv_column,
+)
 from feature_extraction import extract_all_features
 
 # 全局变量
 _global_params = None
 
-def init_worker(params):
-    """初始化worker进程"""
-    global _global_params
-    _global_params = params
+
+def get_png_csv_path(threshold=None):
+    """PNG 数据集 CSV 路径：{OUTPUT_PATH}/label/png/Th{threshold}/..."""
+    threshold = threshold if threshold is not None else PARAMS['mag_threshold']
+    suffix = get_output_suffix()
+    csv_dir = os.path.join(OUTPUT_PATH, 'label', 'png', f'Th{threshold}')
+    ensure_directory(csv_dir)
+    return os.path.join(csv_dir, f'solar_flare_dataset_png_{suffix}.csv')
+
+
+def build_csv_headers(prediction_hours_list):
+    flare_label_cols = [
+        f'flare_label_{thr}_{hr}hr'
+        for hr in prediction_hours_list
+        for thr in FLARE_LABEL_THRESHOLDS
+    ]
+    flare_class_cols = [f'flare_class_{hr}hr' for hr in prediction_hours_list]
+    return FEATURE_NAMES + flare_label_cols + flare_class_cols + ['image_filename', 'image_path']
+
 
 def load_flare_labels():
     """加载耀斑标签"""
@@ -48,11 +71,18 @@ def load_flare_labels():
                     'begin_time': row['Begin_Time'],
                     'max_time': row['Max_Time'],
                     'end_time': row['End_Time'],
-                    'flare_class': row['Flare_Class']
+                    'flare_class': row['Flare_Class'],
                 })
     except Exception as e:
         print(f"加载耀斑标签失败: {e}")
     return flare_records
+
+
+def init_worker(params):
+    """初始化worker进程"""
+    global _global_params
+    _global_params = params
+
 
 def get_flare_label(image_filename, flare_records, prediction_hours_list):
     """严格预测：每个 hr 为半开区间 [Begin-hr, Begin)；Begin-hr 含、Begin 不含；t>=Begin 不正样本。"""
@@ -81,7 +111,6 @@ def get_flare_label(image_filename, flare_records, prediction_hours_list):
             begin_datetime = datetime.strptime(record['begin_time'], "%Y%m%d_%H%M%S")
         except ValueError:
             continue
-        # 早退：用最大窗口快速过滤（仅爆发前 [Begin-max_h, Begin)）
         if not (begin_datetime - timedelta(hours=max_hours) <= txt_datetime < begin_datetime):
             continue
         for hr in prediction_hours_list:
@@ -98,13 +127,13 @@ def get_flare_label(image_filename, flare_records, prediction_hours_list):
         flare_classes.append(str(b))
     return flare_labels, flare_classes
 
+
 def process_batch(batch):
     """批量处理多个PNG文件 - 先预加载到内存再处理"""
     global _global_params
     flare_records = _global_params['flare_records']
     prediction_hours_list = _global_params['prediction_hours_list']
-    
-    # 第一步：预加载所有文件到内存
+
     preloaded = []
     for img_path in batch:
         try:
@@ -112,16 +141,15 @@ def process_batch(batch):
             preloaded.append((img_path, img))
         except Exception as e:
             preloaded.append((img_path, None, str(e)))
-    
-    # 第二步：从内存处理
+
     results = []
     failed_files = []
-    
+
     for item in preloaded:
-        if len(item) == 3:  # 加载失败
+        if len(item) == 3:
             failed_files.append((item[0], item[2]))
             continue
-        
+
         img_path, img = item
         try:
             if img.ndim == 3 and img.shape[2] >= 3:
@@ -132,9 +160,9 @@ def process_batch(batch):
             else:
                 failed_files.append((img_path, "不支持的图像格式"))
                 continue
-            
+
             features = extract_all_features(gray_image)
-            
+
             image_filename = os.path.basename(img_path)
             flare_labels, flare_classes = get_flare_label(
                 image_filename, flare_records, prediction_hours_list
@@ -147,34 +175,41 @@ def process_batch(batch):
             results.append(feature_values + flare_labels + flare_classes + [image_filename, image_path])
         except Exception as e:
             failed_files.append((img_path, str(e)))
-    
+
     del preloaded
     gc.collect()
     return results, failed_files
 
-def generate_dataset():
+
+def generate_dataset(skip_existing=False, output_csv=None):
     """主函数：提取特征并生成数据集"""
     logger = setup_logging('step5_generate_dataset_png')
     logger.info("开始生成PNG数据集...")
-    
+
     png_folder = get_path('png_600')
     suffix = get_output_suffix()
-    output_csv = f"{OUTPUT_PATH}/solar_flare_dataset_png_{suffix}.csv"
-    
+    if output_csv is None:
+        output_csv = (
+            get_png_csv_path()
+            if skip_existing
+            else f"{OUTPUT_PATH}/solar_flare_dataset_png_{suffix}.csv"
+        )
+
     logger.info(f"参数配置: {suffix}")
     logger.info(f"输出文件: {output_csv}")
-    
-    # 加载耀斑标签
+    if skip_existing:
+        logger.info("增量模式: 仅处理 CSV 中缺失的 PNG，追加写入")
+        print("增量模式: 仅处理 CSV 中缺失的 PNG，追加写入")
+
     flare_records = load_flare_labels()
     logger.info(f"加载了{len(flare_records)}个耀斑标签")
-    
-    # 收集所有PNG文件
+
     png_files = []
     for root, dirs, files in os.walk(png_folder):
         for file in files:
             if file.endswith('.png'):
                 png_files.append(os.path.join(root, file))
-    
+
     png_files.sort()
     total_before = len(png_files)
     png_files = [f for f in png_files if year_in_range(extract_year_from_filename(f))]
@@ -182,14 +217,31 @@ def generate_dataset():
     logger.info(filter_msg)
     print(filter_msg)
 
-    logger.info(f"找到{len(png_files)}个PNG文件（年份过滤后）")
-    print(f"找到 {len(png_files)} 个PNG文件（年份过滤后）")
+    skipped_csv = 0
+    if skip_existing:
+        existing_names = load_existing_csv_column(output_csv, 'image_filename')
+        if existing_names:
+            to_process = []
+            for png_path in png_files:
+                if os.path.basename(png_path) in existing_names:
+                    skipped_csv += 1
+                else:
+                    to_process.append(png_path)
+            skip_msg = f"CSV 已有 {len(existing_names)} 条，跳过 {skipped_csv}，待处理 {len(to_process)}"
+            logger.info(skip_msg)
+            print(skip_msg)
+            png_files = to_process
+
+    logger.info(f"找到{len(png_files)}个PNG文件待处理")
+    print(f"找到 {len(png_files)} 个PNG文件待处理")
+
+    prediction_hours_list = get_prediction_hours_list()
+    headers = build_csv_headers(prediction_hours_list)
 
     if not png_files:
-        print("没有找到PNG文件")
-        return
-    
-    prediction_hours_list = get_prediction_hours_list()
+        print(f"步骤5完成: 无需追加 (CSV 跳过 {skipped_csv} 条)")
+        return {'appended': 0, 'skipped': skipped_csv, 'failed': 0, 'output_csv': output_csv}
+
     logger.info(f"预测窗口(小时): {prediction_hours_list}")
     print(f"预测窗口(小时): {prediction_hours_list}")
 
@@ -197,20 +249,22 @@ def generate_dataset():
         'flare_records': flare_records,
         'prediction_hours_list': prediction_hours_list,
     }
-    
+
     all_results = []
     all_failed = []
-    
+
     if PARAMS['use_multiprocess']:
         max_workers = PARAMS['max_workers'] or cpu_count()
         batch_size = PARAMS.get('preload_count', 20)
-        
-        batches = [png_files[i:i+batch_size] for i in range(0, len(png_files), batch_size)]
+        batches = [png_files[i:i + batch_size] for i in range(0, len(png_files), batch_size)]
         print(f"使用 {max_workers} 个进程，每批 {batch_size} 个文件")
-        
+
         with Pool(max_workers, initializer=init_worker, initargs=(params,)) as pool:
-            for results, failed_files in tqdm(pool.imap_unordered(process_batch, batches),
-                                              total=len(batches), desc="提取PNG特征"):
+            for results, failed_files in tqdm(
+                pool.imap_unordered(process_batch, batches),
+                total=len(batches),
+                desc="提取PNG特征",
+            ):
                 all_results.extend(results)
                 all_failed.extend(failed_files)
     else:
@@ -219,35 +273,55 @@ def generate_dataset():
             results, failed = process_batch([png_file])
             all_results.extend(results)
             all_failed.extend(failed)
-    
-    # 记录失败文件
+
     if all_failed:
         logger.warning(f"共有 {len(all_failed)} 个文件处理失败:")
         for failed_file, error in all_failed:
             logger.error(f"  失败文件: {failed_file}, 错误: {error}")
         print(f"警告: {len(all_failed)} 个文件处理失败，详见日志")
-    
+
     logger.info(f"有效结果: {len(all_results)}/{len(png_files)}")
-    
-    # 按文件名排序
-    all_results.sort(key=lambda x: x[-2])
-    
-    # 写入CSV（按窗口分组：每组 4 个 flare_label，再按窗口顺序 flare_class_*）
-    flare_label_cols = [
-        f'flare_label_{thr}_{hr}hr'
-        for hr in prediction_hours_list
-        for thr in FLARE_LABEL_THRESHOLDS
-    ]
-    flare_class_cols = [f'flare_class_{hr}hr' for hr in prediction_hours_list]
-    headers = FEATURE_NAMES + flare_label_cols + flare_class_cols + ['image_filename', 'image_path']
-    with open(output_csv, mode='w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(headers)
-        writer.writerows(all_results)
-    
+
+    append_mode = skip_existing and os.path.exists(output_csv) and os.path.getsize(output_csv) > 0
+    if skip_existing:
+        all_results.sort(key=lambda x: x[-2])
+        write_header = not os.path.exists(output_csv) or os.path.getsize(output_csv) == 0
+        mode = 'w' if write_header else 'a'
+        with open(output_csv, mode=mode, newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            if write_header:
+                writer.writerow(headers)
+            writer.writerows(all_results)
+    else:
+        all_results.sort(key=lambda x: x[-2])
+        with open(output_csv, mode='w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(headers)
+            writer.writerows(all_results)
+
     logger.info(f"PNG数据集已保存到: {output_csv}")
-    print(f"步骤5完成: 生成了包含{len(all_results)}条记录的PNG数据集")
+    action = "追加" if append_mode else "写入"
+    print(f"步骤5完成: {action} {len(all_results)} 条记录 (CSV 跳过 {skipped_csv} 条)")
     print(f"数据集文件: {output_csv}")
+    return {
+        'appended': len(all_results),
+        'skipped': skipped_csv,
+        'failed': len(all_failed),
+        'output_csv': output_csv,
+    }
+
 
 if __name__ == '__main__':
-    generate_dataset()
+    parser = argparse.ArgumentParser(description="Step5: 从 PNG 生成数据集 CSV")
+    parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        help='仅处理 CSV 中缺失的 PNG，追加到文件末尾',
+    )
+    parser.add_argument(
+        '--output-csv',
+        default=None,
+        help='输出 CSV 路径（默认：增量模式用 label/png/Th{threshold}/，全量模式用 OUTPUT_PATH 根目录）',
+    )
+    args = parser.parse_args()
+    generate_dataset(skip_existing=args.skip_existing, output_csv=args.output_csv)

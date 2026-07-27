@@ -22,6 +22,8 @@ os.makedirs(os.environ['TMPDIR'], exist_ok=True)
 
 import sys
 import time
+import argparse
+import inspect
 import pandas as pd
 import numpy as np
 from config import (
@@ -33,6 +35,13 @@ from config import (
     get_prediction_hours_list,
 )
 from utils import setup_logging
+
+def call_step(main_func, skip_existing=False):
+    """调用 step 主函数，若支持 skip_existing 则传入。"""
+    sig = inspect.signature(main_func)
+    if 'skip_existing' in sig.parameters:
+        return main_func(skip_existing=skip_existing)
+    return main_func()
 
 def analyze_dataset():
     """分析生成的数据集"""
@@ -112,7 +121,7 @@ def analyze_dataset():
     except Exception as e:
         print(f"数据集分析失败: {e}")
 
-def run_pipeline(start_step=1, end_step=6, skip_inspection=False):
+def run_pipeline(start_step=1, end_step=6, skip_inspection=False, skip_existing=False):
     """
     运行数据处理流水线
     
@@ -120,6 +129,7 @@ def run_pipeline(start_step=1, end_step=6, skip_inspection=False):
         start_step: 起始步骤 (1-6)
         end_step: 结束步骤 (1-6)
         skip_inspection: 是否跳过数据检测 (默认False)
+        skip_existing: 增量模式，跳过已有产物
     """
     logger = setup_logging('main_pipeline')
     
@@ -136,6 +146,7 @@ def run_pipeline(start_step=1, end_step=6, skip_inspection=False):
     print("  太阳耀斑预测数据集构建流水线")
     print("=" * 60)
     print(f"执行步骤: {start_step} → {end_step}")
+    print(f"运行模式: {'增量 (skip_existing)' if skip_existing else '全量'}")
     print(f"磁场阈值: {PARAMS['mag_threshold']} Gauss")
     print(f"预测窗口: {get_prediction_hours_list()} 小时")
     print(f"并行进程: {PARAMS['max_workers']}")
@@ -176,7 +187,7 @@ def run_pipeline(start_step=1, end_step=6, skip_inspection=False):
             # 调用对应的主函数
             main_func = getattr(module, func_name, None)
             if main_func:
-                main_func()
+                call_step(main_func, skip_existing=skip_existing)
             else:
                 print(f"错误: 模块 {module_name} 没有找到函数 {func_name}")
                 continue
@@ -217,7 +228,7 @@ def print_usage():
 ==============================
 
 使用方法:
-  python main_pipeline.py [start_step] [end_step] [--skip-inspection]
+  python main_pipeline.py [--skip-existing] [--skip-inspection] [start_step] [end_step]
 
 步骤说明:
   1. 提取耀斑标签    - 从NOAA事件文件提取耀斑记录
@@ -232,12 +243,14 @@ def print_usage():
 
 选项:
   --skip-inspection  跳过数据完整性检测
+  --skip-existing    增量模式，跳过已有产物，仅处理新增数据
 
 示例:
-  python main_pipeline.py                    # 执行所有步骤 (含数据检测)
-  python main_pipeline.py --skip-inspection  # 执行所有步骤 (跳过检测)
-  python main_pipeline.py 1 3                # 执行步骤 1 到 3
-  python main_pipeline.py 4                  # 只执行步骤 4
+  python main_pipeline.py                         # 执行所有步骤 (含数据检测)
+  python main_pipeline.py --skip-inspection       # 执行所有步骤 (跳过检测)
+  python main_pipeline.py --skip-existing         # 增量模式
+  python main_pipeline.py 1 3                     # 执行步骤 1 到 3
+  python main_pipeline.py 4                         # 只执行步骤 4
 
 配置文件: config.py
   - mag_threshold: 磁场归一化阈值 (200/500/1000)
@@ -246,30 +259,41 @@ def print_usage():
 """)
 
 if __name__ == "__main__":
-    # 检查是否有 --skip-inspection 参数
-    skip_inspection = '--skip-inspection' in sys.argv
-    args = [arg for arg in sys.argv[1:] if arg != '--skip-inspection']
-    
-    if len(args) == 0:
-        run_pipeline(skip_inspection=skip_inspection)
-    elif len(args) == 1:
-        if args[0] in ['-h', '--help']:
-            print_usage()
-        else:
-            try:
-                step = int(args[0])
-                run_pipeline(step, step, skip_inspection=skip_inspection)
-            except ValueError:
-                print("错误: 步骤号必须是整数")
-                print_usage()
-    elif len(args) == 2:
-        try:
-            start_step = int(args[0])
-            end_step = int(args[1])
-            run_pipeline(start_step, end_step, skip_inspection=skip_inspection)
-        except ValueError:
-            print("错误: 步骤号必须是整数")
-            print_usage()
+    parser = argparse.ArgumentParser(
+        description='太阳耀斑预测数据集构建流水线',
+        add_help=True,
+    )
+    parser.add_argument(
+        '--skip-inspection',
+        action='store_true',
+        help='跳过数据完整性检测',
+    )
+    parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        help='增量模式，跳过已有产物，仅处理新增数据',
+    )
+    parser.add_argument(
+        'steps',
+        nargs='*',
+        type=int,
+        metavar='STEP',
+        help='可选：起始步骤 [结束步骤]，默认 1 6',
+    )
+    args = parser.parse_args()
+
+    if len(args.steps) == 0:
+        start_step, end_step = 1, 6
+    elif len(args.steps) == 1:
+        start_step = end_step = args.steps[0]
+    elif len(args.steps) == 2:
+        start_step, end_step = args.steps
     else:
-        print("错误: 参数过多")
-        print_usage()
+        parser.error('最多指定两个步骤号：start_step [end_step]')
+
+    run_pipeline(
+        start_step,
+        end_step,
+        skip_inspection=args.skip_inspection,
+        skip_existing=args.skip_existing,
+    )

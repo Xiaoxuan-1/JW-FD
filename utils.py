@@ -3,6 +3,7 @@
 工具函数模块 - 通用的辅助函数
 """
 
+import csv
 import os
 import re
 import logging
@@ -154,3 +155,30 @@ def hmi_norm(image_file, threshold=None):
 def ensure_directory(path):
     """确保目录存在（多进程安全）"""
     os.makedirs(path, exist_ok=True)
+
+
+def load_existing_csv_column(csv_path, column='image_filename'):
+    """读取已有 CSV 中指定列的非空值集合。"""
+    if not os.path.exists(csv_path):
+        return set()
+    existing = set()
+    with open(csv_path, mode='r', newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        if not reader.fieldnames or column not in reader.fieldnames:
+            return set()
+        for row in reader:
+            value = row.get(column)
+            if value:
+                existing.add(value)
+    return existing
+
+
+def should_skip_movie(mp4_path, png_paths):
+    """增量模式：MP4 比文件夹内最新 PNG 新则跳过，否则重生成。"""
+    if not os.path.exists(mp4_path):
+        return False
+    mp4_mtime = os.path.getmtime(mp4_path)
+    if not png_paths:
+        return True
+    max_png_mtime = max(os.path.getmtime(p) for p in png_paths)
+    return mp4_mtime >= max_png_mtime

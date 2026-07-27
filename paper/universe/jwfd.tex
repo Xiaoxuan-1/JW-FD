@@ -1,5 +1,6 @@
 % JW-FD Universe (MDPI) Article manuscript
-\documentclass[universe,article,submit,pdftex,moreauthors]{Definitions/mdpi}
+% Omit pdftex so graphicx/xcolor auto-detect the engine (required for XeLaTeX/arXiv).
+\documentclass[universe,article,submit,moreauthors]{Definitions/mdpi}
 
 \usepackage{amsmath}
 \usepackage{booktabs}
@@ -22,20 +23,21 @@
 \dateaccepted{ }
 \datepublished{ }
 
-\Title{JW-FD: A Long Horizon Multimodal Solar Flare Forecasting Dataset for Large Language Models}
+\Title{JW-FD: A Long Horizon Multimodal Solar Flare Forecasting Dataset}
 
 \newcommand{\orcidauthorA}{0009-0003-1447-2439}
 
-\Author{Shao Mingfu $^{1}$\orcidA{}, Lin Jiaben $^{1,}$*, Wang Hui $^{1}$, Tong Liyue $^{1}$, Yang Chen $^{1}$, Zhang Yin $^{1}$ and Li Yuyang $^{1}$}
+\Author{Shao Mingfu $^{1}$\orcidA{}, Lin Jiaben $^{1,}$*, Wang Hui $^{1,2}$, Tong Liyue $^{1}$, Yang Chen $^{1,2}$, Zhang Yin $^{1,2}$ and Li Yuyang $^{2,1}$}
 
 \AuthorNames{Shao Mingfu, Lin Jiaben, Wang Hui, Tong Liyue, Yang Chen, Zhang Yin, and Li Yuyang}
 
 \address{%
-$^{1}$ \quad National Astronomical Observatories, Chinese Academy of Sciences, Beijing 100101, China; jiabenlin@bao.ac.cn}
+$^{1}$ \quad State Key Laboratory of Solar Activity and Space Weather, NAOC, Beijing 100101, P.~R.~China; jiabenlin@bao.ac.cn\\
+$^{2}$ \quad University of Chinese Academy of Sciences, Beijing 101408, P.~R.~China}
 
 \corres{Correspondence: jiabenlin@bao.ac.cn}
 
-\abstract{Solar flares drive severe space weather hazards, and forecasting flare occurrence from photospheric magnetograms remains a central challenge for heliophysics and operational forecasting services. Machine learning and multimodal large language model methods require long horizon datasets in which images, magnetic features, and flare labels are coregistered in space and time. We present \textbf{JW-FD} (JW-Flare Dataset), a 15 year multimodal release spanning 1~January~2011 through 31~December~2025, constructed from SDO/HMI line of sight magnetograms, NOAA Solar Region Summary reports, and NOAA X-ray flare event lists. The dataset comprises 3{,}064 independent active regions, 1{,}991{,}247 magnetograms, and 3{,}064 per region evolution videos. Each sample corresponds to 29 magnetic features, 35 flare labels, and 2 metadata columns (66~dimensions in total). Labels follow strict forecasting semantics before eruption over seven forecast horizons and four GOES intensity thresholds. An 8:1:1 split at the active region level is adopted to prevent temporal leakage between partitions. PNG branches are released at six magnetic saturation thresholds, and internal Transformer experiments on $\geq$C1.0 forecasting suggest $B_{\mathrm{th}}=1000$~G as a preliminary default, although the optimal saturation is model and task dependent. The open source construction pipeline is available at \url{https://github.com/Xiaoxuan-1/JW-FD}.}
+\abstract{Solar flares drive severe space weather hazards, and forecasting their occurrence remains a central challenge for both heliophysics and operational space weather services. Data driven methods require long horizon datasets in which images, magnetic features, and flare labels are coregistered in space and time. We present \textbf{JW-FD} (JW-Flare Dataset), a 15 year multimodal release spanning 1~January~2011 through 31~December~2025, constructed from SDO/HMI line of sight magnetograms, NOAA Solar Region Summary reports, and NOAA X-ray flare event lists. The dataset comprises 3{,}064 independent active regions and 1{,}991{,}247 coregistered magnetogram crops, together with FITS, PNG, CSV, and MP4 modalities. Each sample provides 29 magnetic features linked to configurable flare labels under a strict pre-eruption window spanning seven forecast horizons and four GOES intensity thresholds. An 8:1:1 split at the active region level is adopted to prevent temporal leakage between partitions. PNG branches are released at six magnetic saturation thresholds, and internal Transformer experiments on $\geq$C1.0 forecasting suggest $B_{\mathrm{th}}=1000$~G as a preliminary default, although the optimal saturation is model and task dependent. The open source construction pipeline is available at \url{https://github.com/Xiaoxuan-1/JW-FD}.}
 
 \keyword{solar flare forecasting; magnetograms; multimodal dataset; machine learning}
 
@@ -44,28 +46,25 @@ $^{1}$ \quad National Astronomical Observatories, Chinese Academy of Sciences, B
 \section{Introduction}
 \label{sec:intro}
 
-Solar flares are among the most energetic manifestations of solar magnetic activity. Major flares (M/X class) can disrupt satellite operations, aviation communications, and power grid infrastructure. Forecasting flare occurrence before eruption from photospheric magnetograms is therefore a priority for fundamental solar physics~\cite{Shao2025review,Toriumi2019,Leka2019}.
+Solar flares are among the most energetic manifestations of solar magnetic activity. Major (M- and X-class) flares can disrupt satellites, communications, and power grids, making reliable flare forecasting a priority for both fundamental solar physics and operational space weather services~\cite{Shao2025review,Toriumi2019,Leka2019}.
 
-Photospheric line of sight (LoS) magnetograms encode signatures of magnetic complexity (gradient concentrations, neutral line topology, and flux imbalance) that precede many eruptive events~\cite{Boucheron2015,Bobra2014}. Quantitative features derived from magnetograms have long supported statistical and machine learning (ML) flare forecasting models, and recent work extends this paradigm to convolutional neural networks (CNNs), vision transformers, and multimodal large language models (MLLMs) that consume both images and structured physical parameters~\cite{Shao2025jwflare}. Such methods require datasets in which visual, physical parameters, and label modalities are coregistered in space and time, together with a train/validation/test splitting scheme that prevents temporal information leakage between partitions.
+Photospheric line of sight (LoS) magnetograms encode signatures of magnetic complexity (gradient 
+concentrations, neutral line topology, and flux imbalance) that precede many eruptive events~\cite{Boucheron2015,Bobra2014}. Quantitative features derived from magnetograms have long supported statistical and machine learning (ML) flare forecasting, and recent work extends this paradigm to convolutional neural networks (CNNs), vision transformers, and multimodal models that consume both images and structured parameters~\cite{Shao2025jwflare,Shao2026jwvl}. These methods require datasets in which images, physical features, and flare labels are coregistered in space and time, under a partitioning scheme that prevents temporal leakage across splits.
 
-Several public datasets now support data driven flare forecasting, but their coverage remains limited for long horizon multimodal modeling. Boucheron et al.\ released an active region (AR) LoS magnetogram image dataset covering 2010--2018~\cite{Boucheron2023}. Relative to Cycles~24--25, its temporal span is shorter, and it does not yet provide coregistered images, magnetic features, and configurable labels across forecast horizons and intensity thresholds.
+Several public datasets now support data driven flare forecasting, but they differ in temporal span, modality coverage, and evaluation design. Boucheron et al.\ released an AR LoS magnetogram image corpus covering 2010--2018~\cite{Boucheron2023}. Angryk et al.\ released SWAN-SF, a multivariate time series corpus of Space weather HMI Active Region Patch (SHARP) parameters over a similar interval~\cite{Angryk2020,Bobra2014sharp}. Nishizuka et al.\ assembled feature databases associated with Deep Flare Net (DeFN)~\cite{Nishizuka2017,Nishizuka2018}, and related work continues to organize SHARP parameter sets for operational forecasting~\cite{Abduallah2023,Florios2018}. Complementary studies assemble magnetogram or multiwavelength working sets for CNNs, long short term memory (LSTM) networks, and related models~\cite{Huang2018,Li2020,Sun2022,Jonas2018}, yet many remain study specific and are not redistributed as reusable long horizon multimodal corpora~\cite{Shao2025review,Bloomfield2012,Barnes2016}.
 
-Space-weather Helioseismic and Magnetic Imager (HMI) Active Region Patches (SHARPs) supply vector field cutouts and summary keywords that underpin many forecasting studies~\cite{Bobra2014sharp,Bobra2014}. Building on this product, Angryk et al.\ released SWAN-SF, a multivariate time series dataset of SHARP parameters covering 2010--2018~\cite{Angryk2020}, while Nishizuka et al.\ assembled and released feature databases associated with Deep Flare Net (DeFN)~\cite{Nishizuka2017,Nishizuka2018}. Subsequent work continues to organize SHARP parameter sets for operational forecasting~\cite{Abduallah2023,Florios2018}. These resources are strong for tabular and time series learning, but they do not yet jointly release magnetogram imagery, extracted features, and evolution videos for active regions under a single indexing scheme spanning Cycles~24--25.
+More recently, SuryaBench provides a large multitask heliophysics benchmark for foundation model research, with solar flare forecasting as one of several applications~\cite{Roy2026}. Its flare subset uses full disk SDO context with a fixed 24~h labeling window and a calendar based train/test partition, rather than NOAA AR crops with configurable multi horizon labels and an AR level split. Relative to Boucheron et al.~\cite{Boucheron2023}, SWAN-SF~\cite{Angryk2020}, and the SuryaBench flare task~\cite{Roy2026}, JW-FD supplies a long horizon, AR centered multimodal release in which images, magnetic features, flare labels, and evolution videos share a common index under a leakage aware AR level partition~\cite{Leka2019}.
 
-Complementary studies assemble magnetogram or multiwavelength working datasets for CNNs, long short term memory (LSTM) networks, and related models~\cite{Huang2018,Li2020,Sun2022,Jonas2018}. As noted in recent surveys, however, many forecasting studies still rely on assemblies specific to each study that are not redistributed as a reusable long horizon multimodal dataset, which limits comparison across studies and reproducibility~\cite{Shao2025review,Bloomfield2012,Barnes2016}. More recently, SuryaBench provides a large multitask heliophysics benchmark for foundation model research, with solar flare forecasting as one of several applications~\cite{Roy2026}. Although valuable as a broad evaluation suite, it is not a dedicated multimodal flare forecasting release centered on active regions, with configurable labels across forecast horizons and a training, validation, and test split at the active region level designed to prevent temporal leakage~\cite{Leka2019}.
-
-Taken together, these efforts leave open the need for a single long horizon multimodal dataset at the active region level that coregisters images, magnetic features, flare labels, and evolution videos under partitions that avoid temporal leakage.
-
-\textbf{JW-FD} (JW-Flare Dataset) is designed to meet this need. It provides a single long horizon benchmark for vision models, ML, and multimodal architectures. This paper presents the dataset, its design rationale, construction pipeline, and recommended usage.
-Our principal contributions are:
+\textbf{JW-FD} (JW-Flare Dataset) is designed to meet this need. This paper presents the dataset, its design rationale, construction pipeline, and recommended usage.
+Our principal contributions are as follows:
 \begin{enumerate}
-\item A \textbf{15 year multimodal release} (2011--2025) covering solar Cycles~24--25 with 1.99~million active region snapshots, supporting studies of cycle dependent flare statistics and rare X class events.
+\item A \textbf{15 year multimodal release} (2011--2025) covering solar Cycles~24--25 with 1.99~million active region magnetogram crops, supporting studies of cycle dependent flare statistics and rare X class events.
 \item \textbf{Coregistered images, magnetic features, flare labels, and evolution videos}, with 66 dimensional records that link 29 magnetic features to configurable labels defined before eruption.
-\item \textbf{Configurable labels} with strict forecasting semantics before eruption over seven forecast horizons and four Geostationary Operational Environmental Satellite (GOES) intensity thresholds.
-\item An \textbf{8:1:1 training, validation, and test split at the active region level} that keeps all timestamps of one AR in a single partition, reducing temporal leakage for classical ML, deep vision models, and MLLMs.
+\item \textbf{Configurable labels} over seven forecast horizons (1--72~h) and four GOES intensity thresholds (C1.0--X1.0), defined on a strict pre-eruption window.
+\item An \textbf{8:1:1 training, validation, and test split at the active region level} that keeps all timestamps of each AR within a single partition, preventing temporal leakage.
 \end{enumerate}
 
-\section{Materials and Methods}
+\section{Methods}
 \label{sec:methods}
 
 JW-FD is constructed with a six step automated pipeline that ingests Solar Region Summary (SRS) reports and NOAA Events X-ray (XRA) flare lists from the National Oceanic and Atmospheric Administration/Space Weather Prediction Center (NOAA/SWPC), together with Solar Dynamics Observatory (SDO)/HMI~\cite{Scherrer2012,Pesnell2012} full disk LoS magnetograms. The pipeline exports Flexible Image Transport System (FITS) crops, Portable Network Graphics (PNG) images, comma separated values (CSV) tables, and MPEG-4 (MP4) videos. Figure~\ref{fig:pipeline} summarizes the workflow; Table~\ref{tab:pipeline} lists the inputs and outputs of each step.
@@ -99,7 +98,7 @@ JW-FD is constructed with a six step automated pipeline that ingests Solar Regio
 
 \subsection{Data Sources}
 
-\textbf{SDO/HMI} provides full disk LoS magnetograms at 4096$\times$4096 pixels ($\sim$1.5$''$ per pixel) with a cadence of approximately 12~minutes. \textbf{NOAA/SWPC SRS} reports list daily NOAA AR numbers and heliographic locations~\cite{NOAA2024events}. \textbf{NOAA Events} files record GOES soft X-ray flare begin, maximum, and end times, together with GOES class strings (C, M, or X followed by a numeric subclass).
+\textbf{SDO/HMI} provides full disk LoS magnetograms at 4096$\times$4096 pixels ($\sim$1.5$''$ per pixel) with a cadence of approximately 12~minutes. \textbf{NOAA/SWPC SRS} reports list daily NOAA AR numbers and heliographic locations. \textbf{NOAA Events} files record GOES soft X-ray flare begin, maximum, and end times, together with GOES class strings (C, M, or X followed by a numeric subclass).
 
 \subsection{Design Choices}
 \label{sec:design}
@@ -108,9 +107,9 @@ Four design choices distinguish JW-FD from SHARP based patch datasets and earlie
 
 \textbf{Long temporal coverage.} Fifteen calendar years (2011--2025) span the declining phase of Solar Cycle~24, the 2018--2020 minimum, and the rising phase of Cycle~25. This span supports cycle dependent statistics and supplies enough rare M and X class events for threshold specific studies.
 
-\textbf{Multimodal coregistration.} Every sample is indexed by NOAA AR number and Coordinated Universal Time (UTC) timestamp across FITS magnetograms (Gauss scale physics), PNG frames (vision model input), 29 dimensional magnetic feature vectors, configurable flare labels, and per AR MP4 evolution videos. Users may train end to end vision models on PNG or MP4 inputs, tabular classifiers on extracted features, or MLLMs that fuse imagery with structured metadata~\cite{Shao2025jwflare}.
+\textbf{Multimodal coregistration.} Every sample is indexed by NOAA AR number and Coordinated Universal Time (UTC) timestamp across FITS magnetograms (Gauss scale physics), PNG frames (vision model input), 29 dimensional magnetic feature vectors, configurable flare labels, and per AR MP4 evolution videos. Users may train end to end vision models on PNG or MP4 inputs, parameter based classifiers on extracted features, or multimodal models that fuse imagery with structured metadata~\cite{Shao2025jwflare}.
 
-\textbf{Configurable labels with forecasting semantics.} Binary and class labels are defined for seven forecast horizons ($h \in \{1,3,6,12,24,48,72\}$~hours) and four GOES thresholds ($\tau \in \{\mathrm{C1.0,M1.0,M5.0,X1.0}\}$). Positive labels are assigned only within the half open interval before eruption $[\mathrm{Begin}-h,\,\mathrm{Begin})$, excluding frames after eruption (Figure~\ref{fig:label_timeline}). This definition separates forecasting from nowcasting and matches operational lead time requirements.
+\textbf{Configurable pre-eruption labels.} Binary and class labels are defined for seven forecast horizons ($h \in \{1,3,6,12,24,48,72\}$~hours) and four GOES thresholds ($\tau \in \{\mathrm{C1.0,M1.0,M5.0,X1.0}\}$). Positive labels are assigned only within the half open interval $[\mathrm{Begin}-h,\,\mathrm{Begin})$, so frames at or after eruption onset are not treated as positive (Figure~\ref{fig:label_timeline}).
 
 \textbf{AR level evaluation split.} Consecutive HMI frames of the same AR exhibit strong temporal autocorrelation, so assigning different timestamps of one AR to both training and test sets constitutes information leakage~\cite{Barnes2016,Leka2019}. JW-FD therefore adopts an 8:1:1 random split at the AR level (Section~\ref{sec:validation}).
 
@@ -124,7 +123,7 @@ Tracking begins from the SRS Stonyhurst location of each NOAA AR at its first av
 
 \subsection{FITS to PNG Conversion}
 
-To obtain vision ready 8 bit inputs, each cropped FITS magnetogram is mirrored left to right into the north up, east left display orientation. Field values are then clipped at a chosen saturation threshold and linearly mapped to the integer range $[0,255]$:
+Cropped FITS magnetograms are converted to 8 bit PNG images for subsequent vision based analysis. Each crop is mirrored left to right to follow the conventional north up, east left display orientation. Magnetic field values are then clipped at a chosen saturation threshold and linearly mapped to the integer range $[0,255]$:
 \begin{equation}
 B' = \mathrm{clip}(B,\,-B_{\mathrm{th}},\,B_{\mathrm{th}}), \quad
 I = \frac{B' - \min(B')}{\max(B') - \min(B')} \times 255,
@@ -134,25 +133,42 @@ Invalid (NaN) samples are filled prior to clipping. We publish PNG trees for $B_
 
 \subsection{Feature Extraction and Label Matching}
 
-Steps~4 and~5 generate CSV datasets from FITS and PNG inputs. Both branches extract the same 29 feature types and apply the same label matching logic, but the numerical computation differs slightly: FITS features are computed on Gauss scale magnetograms, whereas PNG features are computed on intensity scale images after a 128 level offset. Features follow the methodology of Boucheron et al.~\cite{Boucheron2015}: seven gradient statistics, thirteen neutral line descriptors, five Haar wavelet subband energies, and four magnetic flux integrals.
+Steps~4 and~5 generate CSV datasets from FITS and PNG inputs. Both branches extract the same 29 magnetic features (Table~\ref{tab:features}) and apply the same label matching logic, but the numerical computation differs slightly: FITS features are computed on Gauss scale magnetograms, whereas PNG features are computed on intensity scale images after a 128 level offset. The feature definitions follow Boucheron et al.~\cite{Boucheron2015}, who showed that gradient, neutral line, wavelet, and flux descriptors from LoS magnetograms carry predictive information for flare occurrence: strong gradients and complex polarity inversion lines mark sites of magnetic shear and free energy storage, multiscale wavelet energies summarize spatial structure across resolutions, and signed/unsigned flux measures polarity imbalance and overall magnetic content. 
 
-Each CSV row corresponds to one magnetogram time stamp. We define seven forecast horizons $h \in \{1,3,6,12,24,48,72\}$~hours and four GOES thresholds $\tau \in \{\mathrm{C1.0,M1.0,M5.0,X1.0}\}$. A binary field \texttt{flare\_label\_\{$\tau$\}\_\{$h$hr\}} is set to~1 when at least one flare in the same AR has GOES class $\ge\tau$ and a begin time $\mathrm{Begin}$ lying in the half open window before eruption
+\begin{table}[H]
+\caption{Twenty-nine magnetic features stored in each CSV record (column names as released).}
+\label{tab:features}
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.8cm}X@{}}
+\toprule
+\textbf{Category} & \textbf{Feature names} \\
+\midrule
+Gradient (7) & Gradient mean; Gradient std; Gradient median; Gradient min; Gradient max; Gradient skewness; Gradient kurtosis \\
+Neutral line (13) & NL length; NL no.\ fragments; NL gradient-weighted length; NL curvature mean/std/median/min/max; NL bending energy mean/std/median/min/max \\
+Wavelet (5) & Wavelet Energy L1; Wavelet Energy L2; Wavelet Energy L3; Wavelet Energy L4; Wavelet Energy L5 \\
+Flux (4) & Total positive flux; Total negative flux; Total signed flux; Total unsigned flux \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Each CSV row corresponds to one magnetogram time stamp. We define seven forecast horizons $h \in \{1,3,6,12,24,48,72\}$~hours and four GOES thresholds $\tau \in \{\mathrm{C1.0,M1.0,M5.0,X1.0}\}$. The binary column \texttt{flare\_label\_\{$\tau$\}\_\{$h$hr\}} equals~1 when at least one flare in the same AR has GOES class $\ge\tau$ and a begin time $\mathrm{Begin}$ in the half open window
 \begin{equation}
 \mathrm{Begin} - h \;\le\; t \;<\; \mathrm{Begin}
 \label{eq:window}
 \end{equation}
-and is set to~0 otherwise. The companion field \texttt{flare\_class\_\{$h$hr\}} records the maximum GOES class among events that meet the window for horizon~$h$, or \texttt{0} when no such event occurs.
+and equals~0 otherwise. Separately, \texttt{flare\_class\_\{$h$hr\}} stores the strongest GOES class among flares that fall in the same window for horizon~$h$, and equals \texttt{0} when no such flare occurs.
 
 \subsection{Evolution Videos}
 
-For each AR directory, PNG frames are sorted chronologically and encoded as H.264 MP4 at 60~frames per second. Each AR produces one \texttt{AR\{num\}\_evolution.mp4} file in the \texttt{movies/} directory.
+For each AR directory, PNG frames are sorted chronologically and encoded as H.264 MP4 at 60~frames per second. Each AR produces one \texttt{AR\{num\}\_evolution.mp4} file in the \texttt{movies/} directory. The 60~fps setting is a playback rate for visualization, not an observational cadence: consecutive frames remain the native HMI LoS crops sampled at approximately 12~minutes. At this encoding, one second of video spans about 12~hours of solar time, so the MP4 files provide a time compressed overview of AR evolution for inspection and qualitative analysis rather than a high temporal resolution data stream.
 
 \subsection{Quality Control and Expert Verification}
 \label{sec:qc}
 
-Automated filters are applied stage by stage. In Step~1, flare records are dropped when the AR identifier is invalid, the peak time is missing, or the GOES class string cannot be parsed. Step~2 removes geometrically invalid crops, including those whose centers leave the usable disk or whose AR longitude exceeds the configured limit. Downstream stages handle I/O failures explicitly: truncated FITS reads are logged in Step~3, while Steps~4--5 skip empty or unreadable files and write per-file errors to the step logs; NaNs encountered in PNG normalization are replaced in place. Consistency of the released split is checked against \texttt{dataset\_split\_log\_PNG\_62\_Th1000.txt} so that row counts agree with the parent tables.
+Quality control is enforced throughout the pipeline. Flare lists are first screened to remove records with invalid AR identifiers, missing peak times, or unparseable GOES class strings. During active region extraction, crops are retained only when their centers remain on the usable disk and the AR longitude lies within the prescribed limit. Subsequent conversion and feature extraction stages record truncated or unreadable inputs in step specific logs, skip empty files, and replace NaN values encountered during PNG normalization. 
 
-After the automated pass, solar physicists reviewed a random 5\% subset, focusing on crop centering, boundary completeness, and whether M/X class labels align with the intended windows before eruption. Frames compromised by telemetry gaps or rare processing failures were removed or regenerated.
+In addition to these automated checks, solar physicists inspected a randomly selected 5\% subset of the processed samples. Inspection criteria included crop centering, completeness of the field of view, and consistency of M/X class labels with the intended windows before eruption. Samples affected by telemetry gaps or uncommon processing failures were excluded or regenerated.
 
 \section{Results}
 \label{sec:results}
@@ -160,109 +176,92 @@ After the automated pass, solar physicists reviewed a random 5\% subset, focusin
 \subsection{Dataset Records and Statistics}
 \label{sec:records}
 
-Processed data follow a consistent directory hierarchy under the release root. Table~\ref{tab:summary} summarizes principal scale metrics; Table~\ref{tab:yearly} reports snapshot counts by calendar year; Table~\ref{tab:modalities} describes each modality; Table~\ref{tab:schema} defines the 66 dimensional CSV record; and Table~\ref{tab:split} documents the evaluation split.
+Table~\ref{tab:summary} summarizes the scale of the JW-FD release. Here each magnetogram sample is one $600\times600$ active region crop; the remaining rows inventory the accompanying modalities, flare event records, and evaluation split.
 
 \begin{table}[H]
-\caption{JW-FD dataset scale summary (2011--2025 release, PNG branch $B_{\mathrm{th}}=1000$~G).}
+\caption{Summary statistics of the JW-FD release (2011--2025).}
 \label{tab:summary}
 \centering
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.5cm}X@{}}
 \toprule
-\textbf{Item} & \textbf{Value} \\
+\textbf{Quantity} & \textbf{Specification} \\
 \midrule
-Temporal coverage & 2011-01-01 -- 2025-12-31 (15~yr) \\
+Temporal coverage & 1~January~2011 -- 31~December~2025 (15~yr) \\
 Active regions & 3{,}064 independent NOAA ARs \\
-Magnetogram snapshots & 1{,}991{,}247 \\
-Spatial resolution & 600$\times$600~pixels per crop \\
-Modalities & FITS, PNG, CSV, MP4 (3{,}064 videos) \\
-NOAA flare label records & 12{,}298 (\texttt{flare\_labels.csv}) \\
-Standard split & 8:1:1 by AR (train / val / test) \\
+Magnetogram samples & 1{,}991{,}247 \\
+Spatial resolution & $600\times600$~pixels per AR crop \\
+Released modalities & FITS, PNG, CSV, and MP4 (3{,}064 videos) \\
+Flare event records & 12{,}298 NOAA XRA events (\texttt{flare\_labels.csv}) \\
+Evaluation split & AR level 8:1:1 (training / validation / test) \\
 Data sources & SDO/HMI LoS; NOAA/SWPC SRS; NOAA Events (XRA) \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
+Annual sample totals are strongly modulated by the solar cycle (Figure~\ref{fig:year_chart}). Counts peak near the Cycle~24 maximum (2013--2014) and again during the Cycle~25 rise (2023--2025), whereas the 2018--2020 activity minimum yields far fewer NOAA numbered ARs and therefore fewer retained samples.
+
 \input{figures/year_chart.tex}
 
-\begin{table}[H]
-\caption{Magnetogram snapshot counts by calendar year (PNG branch, $B_{\mathrm{th}}=1000$~G).}
-\label{tab:yearly}
-\centering
-\small
-\begin{tabular}{@{}lr@{\hspace{1.2em}}lr@{\hspace{1.2em}}lr@{}}
-\toprule
-\textbf{Year} & \textbf{Count} & \textbf{Year} & \textbf{Count} & \textbf{Year} & \textbf{Count} \\
-\midrule
-2011 & 141{,}005 & 2012 & 164{,}070 & 2013 & 185{,}954 \\
-2014 & 214{,}503 & 2015 & 141{,}304 & 2016 & 78{,}828 \\
-2017 & 43{,}320 & 2018 & 15{,}317 & 2019 & 8{,}281 \\
-2020 & 19{,}166 & 2021 & 64{,}611 & 2022 & 158{,}002 \\
-2023 & 241{,}428 & 2024 & 274{,}395 & 2025 & 241{,}063 \\
-\midrule
-\multicolumn{5}{l}{\textbf{Total (2011--2025): 1{,}991{,}247}} \\
-\bottomrule
-\end{tabular}
-\end{table}
+Processed products share a common release root and are partitioned by modality (Table~\ref{tab:modalities}). Magnetogram and label directories are indexed by NOAA AR number; PNG branches further separate data by the saturation threshold $B_{\mathrm{th}}$.
 
 \begin{table}[H]
-\caption{JW-FD modalities and file organization.}
+\caption{Released data modalities and corresponding directory layout.}
 \label{tab:modalities}
 \centering
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{1.5cm}>{\raggedright\arraybackslash}p{1.3cm}X>{\raggedright\arraybackslash}p{3.8cm}@{}}
 \toprule
-\textbf{Modality} & \textbf{Format} & \textbf{Description} & \textbf{Path pattern} \\
+\textbf{Modality} & \textbf{Format} & \textbf{Content} & \textbf{Directory layout} \\
 \midrule
-FITS & \texttt{.fits} & LoS magnetogram in Gauss; 600$\times$600 crop & \texttt{fits\_600/\{ARnum\}/...} \\
-PNG & \texttt{.png} & 8 bit grayscale; saturation $B_{\mathrm{th}}$ in path & \texttt{png\_600\_Th\{B\_th\}/\{ARnum\}/...} \\
-CSV & \texttt{.csv} & 66-D record per snapshot; FITS and PNG branches & \texttt{label/\{fits|png\}/Th\{B\_th\}/...} \\
-MP4 & \texttt{.mp4} & Per AR evolution video, 60~fps & \texttt{movies/AR\{num\}\_evolution.mp4} \\
-Labels & \texttt{.csv} & NOAA XRA flare events & \texttt{flare\_labels.csv} \\
+FITS & \texttt{.fits} & LoS magnetogram in Gauss; $600\times600$ crop & \texttt{fits\_600/\{ARnum\}/...} \\
+PNG & \texttt{.png} & 8 bit grayscale; saturation $B_{\mathrm{th}}$ encoded in path & \texttt{png\_600\_Th\{B\_th\}/\{ARnum\}/...} \\
+CSV & \texttt{.csv} & 66 dimensional record per sample; FITS and PNG branches & \texttt{label/\{fits|png\}/Th\{B\_th\}/...} \\
+MP4 & \texttt{.mp4} & Per AR time compressed evolution (60~fps playback; $\sim$12~min source cadence) & \texttt{movies/AR\{num\}\_evolution.mp4} \\
+Labels & \texttt{.csv} & NOAA XRA flare event list & \texttt{flare\_labels.csv} \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
+Each CSV row indexes one sample under a fixed 66 dimensional schema (Table~\ref{tab:schema}). The same record can therefore support tabular learning, vision models, or multimodal fusion without reconstructing labels externally.
+
 \begin{table}[H]
-\caption{66 dimensional CSV record structure.}
+\caption{Composition of each 66 dimensional CSV record.}
 \label{tab:schema}
 \centering
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.8cm}c>{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Block} & \textbf{Dim.} & \textbf{Content} \\
+\textbf{Component} & \textbf{$N$} & \textbf{Description} \\
 \midrule
-Magnetic features & 29 & Gradient (7), neutral line (13), wavelet (5), flux (4) \\
-Binary flare labels & 28 & 7 horizons $\times$ 4 thresholds \\
-Class labels & 7 & Strongest GOES class per horizon \\
-File metadata & 2 & \texttt{image\_filename}, \texttt{image\_path} \\
+Magnetic features & 29 & Gradient, neutral line, wavelet, and flux descriptors (Table~\ref{tab:features}) \\
+Binary flare labels & 28 & Seven forecast horizons $\times$ four GOES thresholds \\
+Class labels & 7 & Strongest GOES class within each forecast horizon \\
+File metadata & 2 & \texttt{image\_filename} and \texttt{image\_path} \\
 \midrule
 \textbf{Total} & \textbf{66} & \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Example label column names include \texttt{flare\_label\_M1.0\_24hr} (binary) and \texttt{flare\_class\_24hr} (string). The composite key (\texttt{AR\_Number}, UTC timestamp) uniquely identifies each snapshot across modalities.
+For evaluation, JW-FD provides an AR level 8:1:1 random split with seed~62 (Table~\ref{tab:split}). All samples from one AR are assigned to a single subset; sample fractions may depart slightly from 8:1:1 because ARs contribute unequal numbers of magnetograms.
 
 \begin{table}[H]
-\caption{Train/validation/test split (AR level 8:1:1; random seed~62; PNG branch $B_{\mathrm{th}}=1000$~G).}
+\caption{Active region level partitioning into training, validation, and test subsets (nominal ratio 8:1:1; random seed~62).}
 \label{tab:split}
 \centering
 \small
-\begin{tabular}{@{}lrr@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-\textbf{Partition} & \textbf{Snapshots} & \textbf{ARs} \\
+\textbf{Subset} & \textbf{Samples ($N$)} & \textbf{Fraction} & \textbf{ARs ($N$)} & \textbf{Fraction} \\
 \midrule
-Training & 1{,}592{,}952 & 2{,}450 \\
-Validation & 193{,}375 & 307 \\
-Test & 204{,}920 & 307 \\
+Training & 1{,}592{,}952 & 80.0\% & 2{,}450 & 80.0\% \\
+Validation & 193{,}375 & 9.7\% & 307 & 10.0\% \\
+Test & 204{,}920 & 10.3\% & 307 & 10.0\% \\
 \midrule
-\textbf{Total} & \textbf{1{,}991{,}247} & \textbf{3{,}064} \\
+\textbf{Total} & \textbf{1{,}991{,}247} & \textbf{100\%} & \textbf{3{,}064} & \textbf{100\%} \\
 \bottomrule
 \end{tabular}
-
-\vspace{4pt}
-\noindent\footnotesize Sample level GOES class counts (full dataset): X: 15{,}094; M: 129{,}776; C: 422{,}548; no flare (0): 1{,}423{,}829.
 \end{table}
 
 \subsection{Magnetic Saturation Threshold Ablation}
@@ -270,30 +269,29 @@ Test & 204{,}920 & 307 \\
 
 Converting Gauss scale FITS magnetograms to 8 bit PNG requires a saturation level $B_{\mathrm{th}}$ in Equation~(\ref{eq:norm}). This choice affects visual contrast, feature statistics on PNG derived branches, and model input distributions. JW-FD therefore releases PNG branches at six saturation levels: 200, 400, 600, 800, 1000, and 2000~G.
 
-To provide an initial reference point, we ran a controlled ablation over these thresholds with a Transformer based vision classifier on the PNG branch, using binary flare grade $\geq$C1.0 and the fixed AR level 8:1:1 split (random seed~62). In this internal study, $B_{\mathrm{th}} = 1000$~G yielded the highest skill (true positive rate, TPR~$= 0.6320$; true skill statistic, TSS~$= 0.5225$ for $\geq$C1.0), as reported in Table~\ref{tab:threshold}.
+To provide an initial reference point, we ran a controlled ablation over these thresholds with a Transformer based vision classifier on the PNG branch, using binary flare grade $\geq$C1.0 and the fixed AR level 8:1:1 split (random seed~62). Table~\ref{tab:threshold} summarizes ACC, TPR, TNR, TSS, F1, MCC, Precision, and FAR. In this internal study, $B_{\mathrm{th}} = 1000$~G attains the highest TPR~(0.6320), TSS~(0.5225), and MCC~(0.2107), whereas 200~G is stronger on ACC, TNR, F1, Precision, and FAR.
 
 \begin{table}[H]
-\caption{Preliminary magnetic saturation threshold ablation (Transformer, $\geq$C1.0, AR level split). Values from internal benchmark; users should re-evaluate for their model and task.}
+\caption{Forecast performance under different magnetic saturation thresholds $B_{\mathrm{th}}$ (Transformer, $\geq$C1.0, AR level split). For FAR, lower is better; for all other metrics, higher is better. Best values in each column are shown in bold.}
 \label{tab:threshold}
 \centering
 \small
-\begin{tabular}{@{}ccc@{}}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lcccccccc@{}}
 \toprule
-\textbf{$B_{\mathrm{th}}$ (G)} & \textbf{TPR} & \textbf{TSS} \\
+\textbf{$B_{\mathrm{th}}$} & \textbf{ACC} & \textbf{TPR} & \textbf{TNR} & \textbf{TSS} & \textbf{F1} & \textbf{MCC} & \textbf{Precision} & \textbf{FAR} \\
 \midrule
-200 & --- & --- \\
-400 & --- & --- \\
-600 & --- & --- \\
-800 & --- & --- \\
-\textbf{1000} & \textbf{0.6320} & \textbf{0.5225} \\
-2000 & --- & --- \\
+200~G & \textbf{0.9346} & 0.3736 & \textbf{0.9445} & 0.3180 & \textbf{0.1648} & 0.1731 & \textbf{0.1058} & \textbf{0.8942} \\
+400~G & 0.8955 & 0.5844 & 0.9010 & 0.4854 & 0.1620 & 0.2043 & 0.0940 & 0.9060 \\
+600~G & 0.8997 & 0.5438 & 0.9059 & 0.4497 & 0.1577 & 0.1938 & 0.0923 & 0.9077 \\
+800~G & 0.8877 & 0.6102 & 0.8926 & 0.5027 & 0.1581 & 0.2045 & 0.0908 & 0.9092 \\
+\textbf{1000~G} & 0.8861 & \textbf{0.6320} & 0.8906 & \textbf{0.5225} & 0.1609 & \textbf{0.2107} & 0.0922 & 0.9078 \\
+2000~G & 0.9254 & 0.3046 & 0.9363 & 0.2409 & 0.1236 & 0.1248 & 0.0776 & 0.9224 \\
 \bottomrule
 \end{tabular}
-
-\noindent{\footnotesize Complete ablation metrics will be deposited with the dataset release documentation. The 1000~G branch is recommended as a \emph{default starting point} only.}
 \end{table}
 
-We emphasize that this threshold selection is a preliminary exploration limited to the Transformer architecture and the $\geq$C1.0 binary task. The optimal saturation may differ for other models (CNN, vision transformer (ViT), MLLM), flare thresholds (M1.0, X1.0), or forecast horizons. Because JW-FD releases PNG branches at all six $B_{\mathrm{th}}$ values, users should treat 1000~G as a recommended starting point rather than a universal optimum and re-ablate when performance is critical.
+We emphasize that this threshold selection is a preliminary exploration limited to the Transformer architecture and the $\geq$C1.0 binary task. The optimal saturation may differ for other models (CNN, LSTM, ViT), flare thresholds (M1.0, M5.0, X1.0), or forecast horizons. Because JW-FD releases PNG branches at all six $B_{\mathrm{th}}$ values, users should treat 1000~G as a recommended starting point rather than a universal optimum and re-ablate when performance is critical.
 
 \section{Discussion}
 \label{sec:discussion}
@@ -301,9 +299,9 @@ We emphasize that this threshold selection is a preliminary exploration limited 
 \subsection{Evaluation Protocol and Class Imbalance}
 \label{sec:validation}
 
-JW-FD adopts an \textbf{8:1:1 random split at the AR level} with random seed~62: all snapshots of a given AR appear exclusively in the training, validation, or test partition (Table~\ref{tab:split}). This protocol prevents information leakage arising from temporal autocorrelation within ARs~\cite{Barnes2016,Leka2019}. Split CSV files (\texttt{*\_train.csv}, \texttt{*\_val.csv}, \texttt{*\_test.csv}) are distributed under \texttt{label/png/Th\{threshold\}/} and \texttt{label/fits/}.
+JW-FD adopts an \textbf{8:1:1 random split at the AR level} with random seed~62: all magnetogram crops of a given AR appear exclusively in the training, validation, or test partition (Table~\ref{tab:split}). This protocol prevents information leakage arising from temporal autocorrelation within ARs~\cite{Barnes2016,Leka2019}. Split CSV files (\texttt{*\_train.csv}, \texttt{*\_val.csv}, \texttt{*\_test.csv}) are distributed under \texttt{label/png/Th\{threshold\}/} and \texttt{label/fits/}.
 
-Positive labels are rare for high thresholds (M5.0, X1.0) and long horizons, producing pronounced class imbalance. Metrics such as the TSS or the Brier score are therefore preferred over raw accuracy~\cite{Bloomfield2012}.
+Positive labels are rare for high thresholds (M5.0, X1.0) and long horizons, producing pronounced class imbalance. Over the full release, sample level GOES class labels comprise 15{,}094~X, 129{,}776~M, 422{,}548~C, and 1{,}423{,}829~nonflare samples. Skill oriented metrics such as TSS, F1, and MCC therefore provide a more balanced assessment than raw accuracy alone~\cite{Bloomfield2012}.
 
 \subsection{Recommended Usage}
 \label{sec:usage}
@@ -311,27 +309,28 @@ Positive labels are rare for high thresholds (M5.0, X1.0) and long horizons, pro
 JW-FD is intended for the heliophysics and space weather ML communities. Suggested applications include:
 
 \begin{itemize}
-\item \textbf{Vision and video models}: Train CNNs, ViTs, or temporal models on PNG snapshots or MP4 evolution sequences, selecting $B_{\mathrm{th}}$ by ablation (Section~\ref{sec:threshold}).
-\item \textbf{Tabular ML}: Apply classical classifiers or gradient boosted trees to the 29 dimensional magnetic feature vectors, comparing FITS derived (Gauss scale) and PNG derived (intensity scale) branches.
-\item \textbf{Multimodal and MLLM approaches}: Fuse PNG/MP4 inputs with tabular features and label metadata in a single indexed record~\cite{Shao2025jwflare}.
+\item \textbf{Vision and video models}: Train CNNs, ViTs, or temporal models on PNG crops or MP4 evolution sequences, selecting $B_{\mathrm{th}}$ by ablation (Section~\ref{sec:threshold}).
+\item \textbf{Parameter-based ML}: Apply classical classifiers or gradient boosted trees to the 29 dimensional magnetic parameter vectors, comparing FITS derived (Gauss scale) and PNG derived (intensity scale) branches.
+\item \textbf{Multimodal fusion}: Combine PNG/MP4 inputs with magnetic parameters and labels from the same indexed record~\cite{Shao2025jwflare,Shao2026jwvl}.
 \item \textbf{Multi horizon benchmarking}: Evaluate models across seven forecast horizons and four GOES thresholds using the precomputed label columns.
-\item \textbf{Comparison with prior datasets}: JW-FD extends the temporal span and modality coverage of earlier AR magnetogram datasets~\cite{Boucheron2023}.
 \end{itemize}
+
+Beyond offline forecasting benchmarks, JW-FD can also support AI driven solar observing systems that need flare aware context or multimodal solar representations~\cite{Lin2026sidest,Tong2026astclaw,Tong2026aims}.
 
 To reproduce or extend the dataset, clone the open source pipeline at \url{https://github.com/Xiaoxuan-1/JW-FD} and set \texttt{START\_YEAR=2011}, \texttt{END\_YEAR=2025} in \texttt{config.py}. We recommend using the distributed split files so that evaluations remain comparable across publications.
 
 \subsection{Limitations}
 \label{sec:limitations}
 
-Current limitations include: (1)~LoS magnetograms only; vector magnetic field products (e.g., SHARP) are not yet integrated~\cite{Bobra2014}; (2)~dependence on NOAA AR numbering and SRS daily positions; (3)~disk center bias induced by the $|\mathrm{longitude}| \le 60^\circ$ filter; and (4)~the 12-minute HMI cadence, which may undersample rapidly evolving configurations before flares.
+Current limitations include restriction to LoS magnetograms without integrated vector magnetic field products such as SHARP~\cite{Bobra2014}, dependence on NOAA AR numbering and SRS daily positions, and disk center bias from the $|\mathrm{longitude}| \le 60^\circ$ filter.
 
 \section{Conclusions}
 
-JW-FD is a 15 year multimodal solar flare forecasting dataset covering 3{,}064 active regions and 1.99~million coregistered magnetogram snapshots. The release provides FITS, PNG, CSV, and MP4 modalities with 66 dimensional records, configurable labels defined before eruption, and an AR level evaluation split. PNG branches at six magnetic saturation thresholds support input format studies; 1000~G is recommended as a preliminary default, subject to the caveats discussed above. We intend JW-FD to serve as shared infrastructure for classical ML, deep vision, and MLLM based flare forecasting research.
+JW-FD is a 15 year multimodal solar flare forecasting dataset covering 3{,}064 active regions and 1.99~million coregistered magnetogram crops. The release provides FITS, PNG, CSV, and MP4 modalities with 66 dimensional records, configurable labels defined before eruption, and an AR level evaluation split. PNG branches at six magnetic saturation thresholds support input format studies; 1000~G is recommended as a preliminary default, subject to the caveats discussed above. We intend JW-FD to serve as shared infrastructure for classical ML, deep learning, and multimodal flare forecasting research.
 
-\authorcontributions{Conceptualization, S.M. and J.L.; methodology, S.M.; software, S.M. and L.T.; validation, S.M., H.W. and Y.L.; data curation, S.M.; writing---original draft preparation, S.M.; writing---review and editing, S.M., J.L., H.W., L.T., C.Y., Y.Z. and Y.L.; visualization, S.M.; supervision, H.W.; project administration, S.M. All authors have read and agreed to the published version of the manuscript.}
+\authorcontributions{Conceptualization, S.M. and J.L.; methodology, S.M.; software, S.M. and L.T.; validation, S.M., H.W. and Y.L.; data curation, S.M.; writing---original draft preparation, S.M.; writing---review and editing, S.M., J.L., H.W., L.T., C.Y., Y.Z. and Y.L.; visualization, S.M.;  project administration, S.M. All authors have read and agreed to the published version of the manuscript.}
 
-\funding{This research received no external funding.}
+\funding{This research was supported by the National Astronomical Observatories, Chinese Academy of Sciences (No.~E4TQ2101), with additional support from the Specialized Research Fund for the State Key Laboratory of Solar Activity and Space Weather.}
 
 \institutionalreview{Not applicable.}
 
@@ -339,40 +338,9 @@ JW-FD is a 15 year multimodal solar flare forecasting dataset covering 3{,}064 a
 
 \dataavailability{The JW-FD dataset described in this paper will be made publicly available upon publication. Processed data are organized under a release root containing \texttt{fits\_600/}, \texttt{png\_600\_Th\{threshold\}/}, \texttt{label/}, \texttt{movies/}, and \texttt{flare\_labels.csv}. A DOI will be assigned upon deposition in a public repository (e.g., Zenodo). The open source dataset construction pipeline is available at \url{https://github.com/Xiaoxuan-1/JW-FD}. Until publication, interested researchers may contact the corresponding author.}
 
-\acknowledgments{Open SDO/HMI magnetograms and NOAA/SWPC flare products made this release possible; we gratefully acknowledge both teams. Support from the National Astronomical Observatories, Chinese Academy of Sciences, is also acknowledged.}
+\acknowledgments{Open SDO/HMI magnetograms and NOAA/SWPC flare products made this release possible; we gratefully acknowledge both teams. Support from the National Astronomical Data Center (NADC) is also acknowledged.}
 
 \conflictsofinterest{The authors declare no conflicts of interest.}
-
-\abbreviations{Abbreviations}{
-The following abbreviations are used in this manuscript:\\
-
-\noindent
-\begin{tabular}{@{}ll}
-AR & Active region \\
-CNN & Convolutional neural network \\
-CSV & Comma separated values \\
-FITS & Flexible Image Transport System \\
-GOES & Geostationary Operational Environmental Satellite \\
-HARP & HMI Active Region Patch \\
-HMI & Helioseismic and Magnetic Imager \\
-LoS & Line of sight \\
-LSTM & Long short term memory \\
-ML & Machine learning \\
-MLLM & Multimodal large language model \\
-MP4 & MPEG-4 video format \\
-NOAA & National Oceanic and Atmospheric Administration \\
-PNG & Portable Network Graphics \\
-SDO & Solar Dynamics Observatory \\
-SHARP & Space-weather HMI Active Region Patch \\
-SRS & Solar Region Summary \\
-SWPC & Space Weather Prediction Center \\
-TPR & True positive rate \\
-TSS & True skill statistic \\
-UTC & Coordinated Universal Time \\
-ViT & Vision transformer \\
-XRA & X-ray flare event list
-\end{tabular}
-}
 
 \begin{adjustwidth}{-\extralength}{0cm}
 \bibliography{references}

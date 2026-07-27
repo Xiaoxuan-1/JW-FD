@@ -31,6 +31,8 @@ os.makedirs(os.environ['TMPDIR'], exist_ok=True)
 
 import sys
 import time
+import argparse
+import inspect
 import pandas as pd
 import numpy as np
 from config import (
@@ -42,6 +44,13 @@ from config import (
     get_prediction_hours_list,
 )
 from utils import setup_logging
+
+def call_step(main_func, skip_existing=False):
+    """调用 step 主函数，若支持 skip_existing 则传入。"""
+    sig = inspect.signature(main_func)
+    if 'skip_existing' in sig.parameters:
+        return main_func(skip_existing=skip_existing)
+    return main_func()
 
 def analyze_dataset():
     """分析生成的数据集"""
@@ -121,13 +130,14 @@ def analyze_dataset():
     except Exception as e:
         print(f"数据集分析失败: {e}")
 
-def run_pipeline_no_interaction(start_step=1, end_step=6):
+def run_pipeline_no_interaction(start_step=1, end_step=6, skip_existing=False):
     """
     运行数据处理流水线（无交互版本）
     
     Args:
         start_step: 起始步骤 (1-6)
         end_step: 结束步骤 (1-6)
+        skip_existing: 增量模式，跳过已有产物
     
     Returns:
         bool: 是否成功完成
@@ -147,6 +157,7 @@ def run_pipeline_no_interaction(start_step=1, end_step=6):
     print("  太阳耀斑预测数据集构建流水线（无交互模式）")
     print("=" * 60)
     print(f"执行步骤: {start_step} → {end_step}")
+    print(f"运行模式: {'增量 (skip_existing)' if skip_existing else '全量'}")
     print(f"磁场阈值: {PARAMS['mag_threshold']} Gauss")
     print(f"预测窗口: {get_prediction_hours_list()} 小时")
     print(f"并行进程: {PARAMS['max_workers']}")
@@ -157,6 +168,7 @@ def run_pipeline_no_interaction(start_step=1, end_step=6):
     logger.info("=" * 60)
     logger.info("流水线开始执行（无交互模式）")
     logger.info(f"执行步骤: {start_step} → {end_step}")
+    logger.info(f"运行模式: {'增量' if skip_existing else '全量'}")
     logger.info(f"磁场阈值: {PARAMS['mag_threshold']} Gauss")
     logger.info(f"预测窗口: {get_prediction_hours_list()} 小时")
     logger.info(f"并行进程: {PARAMS['max_workers']}")
@@ -189,7 +201,7 @@ def run_pipeline_no_interaction(start_step=1, end_step=6):
             logger.info(f"正在调用函数: {func_name}")
             main_func = getattr(module, func_name, None)
             if main_func:
-                main_func()
+                call_step(main_func, skip_existing=skip_existing)
             else:
                 error_msg = f"错误: 模块 {module_name} 没有找到函数 {func_name}"
                 print(error_msg)
@@ -266,7 +278,7 @@ def print_usage():
 ==========================================
 
 使用方法:
-  python run_pipeline.py [start_step] [end_step]
+  python run_pipeline.py [--skip-existing] [start_step] [end_step]
 
 步骤说明:
   1. 提取耀斑标签    - 从NOAA事件文件提取耀斑记录
@@ -277,9 +289,13 @@ def print_usage():
   6. 生成视频        - 生成活动区域演化MP4视频
 
 示例:
-  python run_pipeline.py           # 执行所有步骤
-  python run_pipeline.py 1 3       # 执行步骤 1 到 3
-  python run_pipeline.py 4         # 只执行步骤 4
+  python run_pipeline.py                    # 执行所有步骤（全量）
+  python run_pipeline.py --skip-existing    # 执行所有步骤（增量）
+  python run_pipeline.py 1 3                # 执行步骤 1 到 3
+  python run_pipeline.py 3 5 --skip-existing
+
+选项:
+  --skip-existing  增量模式，跳过已有产物，仅处理新增数据
 
 后台运行（推荐）:
   nohup python run_pipeline.py > pipeline.log 2>&1 &
@@ -312,36 +328,34 @@ def print_usage():
 """)
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    
-    if len(args) == 0:
-        # 执行所有步骤
-        success = run_pipeline_no_interaction()
-        sys.exit(0 if success else 1)
-    elif len(args) == 1:
-        if args[0] in ['-h', '--help']:
-            print_usage()
-            sys.exit(0)
-        else:
-            try:
-                step = int(args[0])
-                success = run_pipeline_no_interaction(step, step)
-                sys.exit(0 if success else 1)
-            except ValueError:
-                print("错误: 步骤号必须是整数")
-                print_usage()
-                sys.exit(1)
-    elif len(args) == 2:
-        try:
-            start_step = int(args[0])
-            end_step = int(args[1])
-            success = run_pipeline_no_interaction(start_step, end_step)
-            sys.exit(0 if success else 1)
-        except ValueError:
-            print("错误: 步骤号必须是整数")
-            print_usage()
-            sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description='太阳耀斑预测数据集构建流水线（无交互版本）',
+        add_help=True,
+    )
+    parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        help='增量模式，跳过已有产物，仅处理新增数据',
+    )
+    parser.add_argument(
+        'steps',
+        nargs='*',
+        type=int,
+        metavar='STEP',
+        help='可选：起始步骤 [结束步骤]，默认 1 6',
+    )
+    args = parser.parse_args()
+
+    if len(args.steps) == 0:
+        start_step, end_step = 1, 6
+    elif len(args.steps) == 1:
+        start_step = end_step = args.steps[0]
+    elif len(args.steps) == 2:
+        start_step, end_step = args.steps
     else:
-        print("错误: 参数过多")
-        print_usage()
-        sys.exit(1)
+        parser.error('最多指定两个步骤号：start_step [end_step]')
+
+    success = run_pipeline_no_interaction(
+        start_step, end_step, skip_existing=args.skip_existing
+    )
+    sys.exit(0 if success else 1)

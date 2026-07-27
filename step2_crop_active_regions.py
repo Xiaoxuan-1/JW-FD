@@ -9,6 +9,7 @@ import glob
 import gc
 import os
 import re
+import argparse
 import numpy as np
 import sunpy.map
 from sunpy.coordinates import frames
@@ -265,8 +266,10 @@ def process_fits_batch(args_batch):
     date_to_ars = _global_date_to_ars
     crop_size = _global_params['crop_size']
     noaa_root_path = _global_params['noaa_path']
-    
+    skip_existing = _global_params.get('skip_existing', False)
+
     total_processed = 0
+    total_skipped = 0
     cropped_ars = set()
     
     for fits_path in args_batch:
@@ -315,21 +318,28 @@ def process_fits_batch(args_batch):
                 
                 safe_time_str = fits_time_str.replace(":", "").replace("-", "").replace("T", "_")
                 save_path = os.path.join(region_folder, f"AR{ar_num}_{safe_time_str}.fits")
-                
+
+                if skip_existing and os.path.exists(save_path):
+                    total_skipped += 1
+                    continue
+
                 fits.writeto(save_path, crop_data, overwrite=True)
                 total_processed += 1
                 cropped_ars.add(ar_num)
         except:
             continue
     
-    return total_processed, cropped_ars
+    return total_processed, total_skipped, cropped_ars
 
-def crop_active_regions():
+def crop_active_regions(skip_existing=False):
     """主函数"""
     logger = setup_logging('step2_crop_regions')
     logger.info("="*60)
     logger.info("步骤2: 裁剪活动区域（多年份数据）- 开始")
     logger.info("="*60)
+    if skip_existing:
+        logger.info("增量模式: 跳过已存在的裁剪 FITS")
+        print("增量模式: 跳过已存在的裁剪 FITS")
     
     noaa_path = get_path('fits_600')
     ensure_directory(noaa_path)
@@ -360,6 +370,7 @@ def crop_active_regions():
     global_params = {
         'crop_size': PARAMS['crop_size'],
         'noaa_path': noaa_path,
+        'skip_existing': skip_existing,
     }
     
     batch_size = PARAMS.get('preload_count', 20)
@@ -370,6 +381,7 @@ def crop_active_regions():
     logger.info(f"开始并行处理 (进程数={max_workers})")
     
     total_processed = 0
+    total_skipped = 0
     all_cropped_ars = set()
     
     with Pool(max_workers, initializer=init_worker, initargs=(ar_optimized_data, date_to_ars, global_params)) as pool:
@@ -378,14 +390,27 @@ def crop_active_regions():
             total=len(batches),
             desc="裁剪进度"
         ))
-        for count, cropped_set in results:
+        for count, skipped, cropped_set in results:
             total_processed += count
+            total_skipped += skipped
             all_cropped_ars.update(cropped_set)
     
-    print(f"\n步骤2完成: 共裁剪 {total_processed} 个文件")
+    print(f"\n步骤2完成: 新生成 {total_processed} 个文件，跳过 {total_skipped} 个")
     print(f"  - 成功裁剪的活动区数量: {len(all_cropped_ars)}")
-    logger.info(f"步骤2完成: 共裁剪 {total_processed} 个文件")
+    logger.info(f"步骤2完成: 新生成 {total_processed} 个文件，跳过 {total_skipped} 个")
     logger.info(f"成功裁剪的活动区数量: {len(all_cropped_ars)}")
+    return {
+        'processed': total_processed,
+        'skipped': total_skipped,
+        'cropped_ars': len(all_cropped_ars),
+    }
 
-if __name__ == "__main__":
-    crop_active_regions()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Step2: 裁剪活动区域 FITS')
+    parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        help='跳过已存在的裁剪 FITS 文件（增量补数）',
+    )
+    args = parser.parse_args()
+    crop_active_regions(skip_existing=args.skip_existing)

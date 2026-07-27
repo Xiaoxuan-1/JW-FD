@@ -1,0 +1,57 @@
+% TikZ pipeline diagram for JW-FD (Figure 1)
+\begin{figure}[t]
+\centering
+\small
+\begin{tikzpicture}[
+  node distance=0.35cm and 0.4cm,
+  box/.style={draw, rounded corners=2pt, align=center, font=\scriptsize,
+              minimum height=0.55cm, inner sep=2pt, fill=gray!8},
+  databox/.style={box, fill=blue!6},
+  outbox/.style={box, fill=green!8, minimum width=1.6cm},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!70}
+]
+  % Inputs
+  \node[databox] (ev) {NOAA Events\\(XRA)};
+  \node[databox, right=of ev] (srs) {NOAA SRS};
+  \node[databox, right=of srs] (hmi) {HMI FITS\\4096$^2$};
+
+  % Step 1
+  \node[box, below=0.5cm of ev] (s1) {Step 1: Parse flare labels};
+  \node[outbox, below=of s1] (lbl) {flare\_labels.csv};
+
+  % Step 2
+  \node[box, below=0.5cm of hmi, xshift=-1.2cm] (s2) {Step 2: Track \& crop ARs};
+  \node[outbox, below=of s2] (fits) {600$\times$600 FITS};
+
+  % Step 3
+  \node[box, below=of fits] (s3) {Step 3: FITS$\to$PNG};
+  \node[outbox, below=of s3] (png) {PNG images};
+
+  % Steps 4-5
+  \node[box, below left=0.6cm and 0.2cm of png] (s4) {Step 4: CSV (FITS)};
+  \node[box, below right=0.6cm and 0.2cm of png] (s5) {Step 5: CSV (PNG)};
+  \node[outbox, below=1.1cm of png] (csv) {66-D CSV records};
+
+  % Step 6
+  \node[box, right=1.8cm of s3] (s6) {Step 6: MP4 video};
+  \node[outbox, below=of s6] (mp4) {2{,}687 videos};
+
+  % Arrows
+  \draw[arr] (ev) -- (s1);
+  \draw[arr] (s1) -- (lbl);
+  \draw[arr] (srs) |- (s2);
+  \draw[arr] (hmi) -- (s2);
+  \draw[arr] (s2) -- (fits);
+  \draw[arr] (fits) -- (s3);
+  \draw[arr] (s3) -- (png);
+  \draw[arr] (png) -- (s4);
+  \draw[arr] (png) -- (s5);
+  \draw[arr] (s4) |- (csv);
+  \draw[arr] (s5) |- (csv);
+  \draw[arr] (lbl.east) -| ([xshift=-0.3cm]csv.north);
+  \draw[arr] (png.east) -| (s6);
+  \draw[arr] (s6) -- (mp4);
+\end{tikzpicture}
+\caption{End-to-end JW-FD construction pipeline. NOAA Events supply flare ground truth; SRS reports and HMI full-disk magnetograms define active-region crops. Steps~4 and~5 share the same 29-dimensional feature extractor and label-matching logic on FITS and PNG branches, respectively.}
+\label{fig:pipeline}
+\end{figure}

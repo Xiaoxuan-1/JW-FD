@@ -154,7 +154,7 @@ PARAMS = {
     'max_longitude': 60,
     
     # 磁场归一化参数 (可选值: 200, 500, 1000)
-    'mag_threshold': 200,  # 选择: 200 | 500 | 1000
+    'mag_threshold': 1000,  # 选择: 200 | 500 | 1000
     
     # 耀斑预测窗口（小时）；可为 int 或 list[int]，一次生成多窗口标签列
     'prediction_hours': [1, 3, 6, 12, 24, 48, 72],

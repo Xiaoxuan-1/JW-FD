@@ -5,6 +5,7 @@
 输出: CSV数据集文件
 """
 
+import argparse
 import os
 import gc
 import csv
@@ -25,7 +26,13 @@ from config import (
     get_output_suffix,
     get_prediction_hours_list,
 )
-from utils import setup_logging, compare_labels, label_meets_threshold, extract_year_from_filename
+from utils import (
+    setup_logging,
+    compare_labels,
+    label_meets_threshold,
+    extract_year_from_filename,
+    load_existing_csv_column,
+)
 from feature_extraction import extract_all_features
 
 # 全局变量
@@ -169,29 +176,40 @@ def process_batch(batch):
     gc.collect()
     return results, failed_files
 
-def generate_dataset():
+def build_csv_headers(prediction_hours_list):
+    flare_label_cols = [
+        f'flare_label_{thr}_{hr}hr'
+        for hr in prediction_hours_list
+        for thr in FLARE_LABEL_THRESHOLDS
+    ]
+    flare_class_cols = [f'flare_class_{hr}hr' for hr in prediction_hours_list]
+    return FEATURE_NAMES + flare_label_cols + flare_class_cols + ['image_filename', 'image_path']
+
+
+def generate_dataset(skip_existing=False):
     """主函数：提取特征并生成数据集"""
     logger = setup_logging('step4_generate_dataset_fits')
     logger.info("开始生成FITS数据集...")
-    
+
     fits_folder = get_path('fits_600')
     suffix = get_output_suffix()
     output_csv = f"{OUTPUT_PATH}/solar_flare_dataset_fits_{suffix}.csv"
-    
+
     logger.info(f"参数配置: {suffix}")
     logger.info(f"输出文件: {output_csv}")
-    
-    # 加载耀斑标签
+    if skip_existing:
+        logger.info("增量模式: 仅处理 CSV 中缺失的 FITS，追加写入")
+        print("增量模式: 仅处理 CSV 中缺失的 FITS，追加写入")
+
     flare_records = load_flare_labels()
     logger.info(f"加载了{len(flare_records)}个耀斑标签")
-    
-    # 收集所有FITS文件
+
     fits_files = []
     for root, dirs, files in os.walk(fits_folder):
         for file in files:
             if file.endswith('.fits'):
                 fits_files.append(os.path.join(root, file))
-    
+
     fits_files.sort()
     total_before = len(fits_files)
     fits_files = [f for f in fits_files if year_in_range(extract_year_from_filename(f))]
@@ -199,14 +217,31 @@ def generate_dataset():
     logger.info(filter_msg)
     print(filter_msg)
 
-    logger.info(f"找到{len(fits_files)}个FITS文件（年份过滤后）")
-    print(f"找到 {len(fits_files)} 个FITS文件（年份过滤后）")
+    skipped_csv = 0
+    if skip_existing:
+        existing_names = load_existing_csv_column(output_csv, 'image_filename')
+        if existing_names:
+            to_process = []
+            for fits_path in fits_files:
+                if os.path.basename(fits_path) in existing_names:
+                    skipped_csv += 1
+                else:
+                    to_process.append(fits_path)
+            skip_msg = f"CSV 已有 {len(existing_names)} 条，跳过 {skipped_csv}，待处理 {len(to_process)}"
+            logger.info(skip_msg)
+            print(skip_msg)
+            fits_files = to_process
+
+    logger.info(f"找到{len(fits_files)}个FITS文件待处理")
+    print(f"找到 {len(fits_files)} 个FITS文件待处理")
+
+    prediction_hours_list = get_prediction_hours_list()
+    headers = build_csv_headers(prediction_hours_list)
 
     if not fits_files:
-        print("没有找到FITS文件")
-        return
-    
-    prediction_hours_list = get_prediction_hours_list()
+        print(f"步骤4完成: 无需追加 (CSV 跳过 {skipped_csv} 条)")
+        return {'appended': 0, 'skipped': skipped_csv, 'failed': 0, 'output_csv': output_csv}
+
     logger.info(f"预测窗口(小时): {prediction_hours_list}")
     print(f"预测窗口(小时): {prediction_hours_list}")
 
@@ -214,17 +249,17 @@ def generate_dataset():
         'flare_records': flare_records,
         'prediction_hours_list': prediction_hours_list,
     }
-    
+
     all_results = []
     all_failed = []
-    
+
     if PARAMS['use_multiprocess']:
         max_workers = PARAMS['max_workers'] or cpu_count()
         batch_size = PARAMS.get('preload_count', 20)
-        
+
         batches = [fits_files[i:i+batch_size] for i in range(0, len(fits_files), batch_size)]
         print(f"使用 {max_workers} 个进程，每批 {batch_size} 个文件")
-        
+
         with Pool(max_workers, initializer=init_worker, initargs=(params,)) as pool:
             for results, failed_files in tqdm(pool.imap_unordered(process_batch, batches),
                                               total=len(batches), desc="提取FITS特征"):
@@ -236,35 +271,49 @@ def generate_dataset():
             results, failed = process_batch([fits_file])
             all_results.extend(results)
             all_failed.extend(failed)
-    
-    # 记录失败文件
+
     if all_failed:
         logger.warning(f"共有 {len(all_failed)} 个文件处理失败:")
         for failed_file, error in all_failed:
             logger.error(f"  失败文件: {failed_file}, 错误: {error}")
         print(f"警告: {len(all_failed)} 个文件处理失败，详见日志")
-    
+
     logger.info(f"有效结果: {len(all_results)}/{len(fits_files)}")
-    
-    # 按文件名排序
-    all_results.sort(key=lambda x: x[-2])
-    
-    # 写入CSV（按窗口分组：每组 4 个 flare_label，再按窗口顺序 flare_class_*）
-    flare_label_cols = [
-        f'flare_label_{thr}_{hr}hr'
-        for hr in prediction_hours_list
-        for thr in FLARE_LABEL_THRESHOLDS
-    ]
-    flare_class_cols = [f'flare_class_{hr}hr' for hr in prediction_hours_list]
-    headers = FEATURE_NAMES + flare_label_cols + flare_class_cols + ['image_filename', 'image_path']
-    with open(output_csv, mode='w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(headers)
-        writer.writerows(all_results)
-    
+
+    append_mode = skip_existing and os.path.exists(output_csv) and os.path.getsize(output_csv) > 0
+    if skip_existing:
+        all_results.sort(key=lambda x: x[-2])
+        write_header = not os.path.exists(output_csv) or os.path.getsize(output_csv) == 0
+        mode = 'w' if write_header else 'a'
+        with open(output_csv, mode=mode, newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            if write_header:
+                writer.writerow(headers)
+            writer.writerows(all_results)
+    else:
+        all_results.sort(key=lambda x: x[-2])
+        with open(output_csv, mode='w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(headers)
+            writer.writerows(all_results)
+
     logger.info(f"FITS数据集已保存到: {output_csv}")
-    print(f"步骤4完成: 生成了包含{len(all_results)}条记录的FITS数据集")
+    action = "追加" if append_mode else "写入"
+    print(f"步骤4完成: {action} {len(all_results)} 条记录 (CSV 跳过 {skipped_csv} 条)")
     print(f"数据集文件: {output_csv}")
+    return {
+        'appended': len(all_results),
+        'skipped': skipped_csv,
+        'failed': len(all_failed),
+        'output_csv': output_csv,
+    }
 
 if __name__ == '__main__':
-    generate_dataset()
+    parser = argparse.ArgumentParser(description='Step4: 从 FITS 生成数据集 CSV')
+    parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        help='仅处理 CSV 中缺失的 FITS，追加到文件末尾',
+    )
+    args = parser.parse_args()
+    generate_dataset(skip_existing=args.skip_existing)
