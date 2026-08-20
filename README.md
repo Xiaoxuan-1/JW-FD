@@ -2,6 +2,23 @@
 
 基于 **HMI 磁图** 与 **NOAA/SRS、Events** 数据，从全日面 FITS 裁剪活动区、提取磁图特征，并结合耀斑事件表构建多阈值、多预测窗口的太阳耀斑数据集（CSV + 可选 PNG / 视频）。
 
+本仓库主要提供**数据集构造流程代码**；约 **1/10** 抽样子集（FITS + PNG Th1000 + movies + 标签，按 AR 对齐）可通过下方链接下载。完整版计划后续发布至国家天文数据中心（NADC）。
+
+## 数据下载（10% 子集）
+
+| 渠道 | 链接 | 说明 |
+|------|------|------|
+| **Zenodo** | [DOI: 10.5281/zenodo.21672850](https://doi.org/10.5281/zenodo.21672850) · [记录页](https://zenodo.org/records/21672850) | 分卷 `JW-FD_subset_10pct.tar.zst.*.part`（约 4 GiB/卷）+ 合包说明 |
+| **百度网盘** | [分享链接](https://pan.baidu.com/s/1POxKrHRjtF_ZEF2Yb5H2Og)（提取码：`gmsm`） | 目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB；分享有效期至 **2026-08-27** |
+
+### Zenodo 合包与解压
+
+```bash
+cat JW-FD_subset_10pct.tar.zst.*.part > JW-FD_subset_10pct.tar.zst
+zstd -t JW-FD_subset_10pct.tar.zst
+tar -I zstd -xf JW-FD_subset_10pct.tar.zst
+```
+
 ## 流水线概览
 
 | Step | 脚本 | 说明 |
@@ -80,8 +97,14 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 ## 仓库说明
 
 - 本仓库主要包含**代码**；大体积数据、日志未纳入版本控制（见 [`.gitignore`](.gitignore)）。
+- 子集数据请见上方「数据下载」；完整版不在本仓库中。
 - 本地备份目录 `2024_test_01-07/` 已忽略，不参与推送。
 
 ## 引用
 
-若使用本仓库进行研究，请根据你的论文或数据政策添加适当引用（JW-FD）。
+若使用本仓库或 JW-FD 子集数据进行研究，请引用本仓库，并视情况引用 Zenodo 数据集：
+
+```
+https://github.com/Xiaoxuan-1/JW-FD
+https://doi.org/10.5281/zenodo.21672850
+```
