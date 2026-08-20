@@ -11,7 +11,7 @@
 | 渠道 | 链接 | 说明 |
 |------|------|------|
 | **Zenodo** | [DOI: 10.5281/zenodo.21672850](https://doi.org/10.5281/zenodo.21672850) · [记录页](https://zenodo.org/records/21672850) | 分卷 `JW-FD_subset_10pct.tar.zst.*.part`（约 4 GiB/卷）+ 合包说明 |
-| **百度网盘** | [分享链接](https://pan.baidu.com/s/1POxKrHRjtF_ZEF2Yb5H2Og)（提取码：`gmsm`） | 目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB；分享有效期至 **2026-08-27** |
+| **百度网盘** | [分享链接](https://pan.baidu.com/s/1TxJPOqVKGdU2B8bkblL1XA)（提取码：`gmsm`） | 目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB；**永久有效** |
 
 ### Zenodo 合包与解压
 
