@@ -4,6 +4,8 @@
 
 本仓库主要提供**数据集构造流程代码**；约 **1/10** 抽样子集（FITS + PNG Th1000 + movies + 标签，按 AR 对齐）可通过下方链接下载。完整版计划后续发布至国家天文数据中心（NADC）。
 
+论文：[JW-FD: A Long Horizon Multimodal Solar Flare Forecasting Dataset](https://arxiv.org/abs/2608.19195)（arXiv:2608.19195）
+
 ## 数据下载（10% 子集）
 
 | 渠道 | 链接 | 说明 |
@@ -102,9 +104,20 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 
 ## 引用
 
-若使用本仓库或 JW-FD 子集数据进行研究，请引用本仓库，并视情况引用 Zenodo 数据集：
+若使用本仓库或 JW-FD 数据进行研究，请引用论文，并视情况引用代码仓库与 Zenodo 子集：
 
+```bibtex
+@misc{shao2026jwfd,
+  title         = {{JW-FD}: A Long Horizon Multimodal Solar Flare Forecasting Dataset},
+  author        = {Shao, Mingfu and Lin, Jiaben and Wang, Hui and Tong, Liyue and Yang, Chen and Zhang, Yin and Li, Yuyang},
+  year          = {2026},
+  eprint        = {2608.19195},
+  archivePrefix = {arXiv},
+  primaryClass  = {astro-ph.SR},
+  url           = {https://arxiv.org/abs/2608.19195}
+}
 ```
-https://github.com/Xiaoxuan-1/JW-FD
-https://doi.org/10.5281/zenodo.21672850
-```
+
+- 论文：https://arxiv.org/abs/2608.19195  
+- 代码：https://github.com/Xiaoxuan-1/JW-FD  
+- 数据（Zenodo 10% 子集）：https://doi.org/10.5281/zenodo.21672850  
