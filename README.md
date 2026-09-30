@@ -4,7 +4,7 @@
 
 本仓库是 Universe 论文的开源构建流水线：<https://github.com/Xiaoxuan-1/JW-FD>。
 
-论文：[JW-FD: A Long Horizon Multimodal Solar Flare Forecasting Dataset](https://arxiv.org/abs/2608.19195)（arXiv:2608.19195）
+论文：[JW-FD: A 15-Year Multimodal Dataset for Solar Flare Forecasting](https://doi.org/10.3390/universe12090281)（*Universe* 2026, 12, 281）
 
 ## 数据发布
 
@@ -121,29 +121,45 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 
 ## 论文
 
-| 稿件 | 路径 | 状态 |
+| 稿件 | 链接 | 状态 |
 |------|------|------|
-| SPIE Proceedings（ATI 2026, **14155-94**） | [`paper/SPIE/`](paper/SPIE/)（仓库内为快照） | **已发表，稿件冻结。最终版在中国科技云 Overleaf**（[latex.cstcloud.cn](https://latex.cstcloud.cn)；2026-09-01 记录） |
-| MDPI *Universe* 期刊稿 | [`paper/universe/`](paper/universe/) | 进行中；数据条款以该稿为准（Zenodo v1 + 即将发布的 v2） |
+| SPIE Proceedings（ATI 2026, 14155-94） | [doi:10.1117/12.3102831](https://doi.org/10.1117/12.3102831) | 已发表（Proc. SPIE **14155**, 2026-08-19） |
+| MDPI *Universe* | [doi:10.3390/universe12090281](https://doi.org/10.3390/universe12090281) | 已发表（*Universe* **2026**, 12(9), 281；2026-09-16） |
 
-SPIE 题目：*An end-to-end pipeline for multimodal solar flare forecasting dataset construction*。最后一次修改在中国科技云 Overleaf 完成，那里才是投稿/发表用的最终源稿；本仓库 `paper/SPIE/` 仅作本地快照，可能落后于 Overleaf。详情见 [`paper/SPIE/README.md`](paper/SPIE/README.md)。期刊稿请只改 `paper/universe/`。
+- SPIE：[An end-to-end pipeline for multimodal solar flare forecasting dataset construction](https://www.spiedigitallibrary.org/conference-proceedings-of-spie/14155/3102831/An-end-to-end-pipeline-for-multimodal-solar-flare-forecasting/10.1117/12.3102831.full)
+- *Universe*：[JW-FD: A 15-Year Multimodal Dataset for Solar Flare Forecasting](https://www.mdpi.com/2218-1997/12/9/281)
 
 ## 引用
 
-若使用本仓库或 JW-FD 数据进行研究，请引用论文，并视情况引用代码仓库与 Zenodo v1 子集。完整 15 年数据请等 v2 DOI 签发后再引用。
+若使用本仓库或 JW-FD 数据，请引用期刊论文；流水线方法亦可引用 SPIE 会议文。完整 15 年数据请等 v2 DOI 签发后再引用。
 
 ```bibtex
-@misc{shao2026jwfd,
-  title         = {{JW-FD}: A Long Horizon Multimodal Solar Flare Forecasting Dataset},
-  author        = {Shao, Mingfu and Lin, Jiaben and Wang, Hui and Tong, Liyue and Yang, Chen and Zhang, Yin and Li, Yuyang},
-  year          = {2026},
-  eprint        = {2608.19195},
-  archivePrefix = {arXiv},
-  primaryClass  = {astro-ph.SR},
-  url           = {https://arxiv.org/abs/2608.19195}
+@article{Shao2026jwfd,
+  author  = {Shao, Mingfu and Lin, Jiaben and Wang, Hui and Tong, Liyue and Yang, Chen and Zhang, Yin and Li, Yuyang},
+  title   = {{JW-FD}: A 15-Year Multimodal Dataset for Solar Flare Forecasting},
+  journal = {Universe},
+  year    = {2026},
+  volume  = {12},
+  number  = {9},
+  pages   = {281},
+  doi     = {10.3390/universe12090281},
+  url     = {https://www.mdpi.com/2218-1997/12/9/281}
+}
+
+@inproceedings{Shao2026jwfdspie,
+  author    = {Shao, Mingfu and Lin, Jiaben and Wang, Hui and Tong, Liyue and Li, Yuyang},
+  title     = {An end-to-end pipeline for multimodal solar flare forecasting dataset construction},
+  booktitle = {Software and Cyberinfrastructure for Astronomy IX},
+  series    = {Proc. SPIE},
+  volume    = {14155},
+  pages     = {94},
+  year      = {2026},
+  doi       = {10.1117/12.3102831},
+  url       = {https://doi.org/10.1117/12.3102831}
 }
 ```
 
-- 论文：https://arxiv.org/abs/2608.19195
+- *Universe*：https://doi.org/10.3390/universe12090281
+- SPIE：https://doi.org/10.1117/12.3102831
 - 代码：https://github.com/Xiaoxuan-1/JW-FD
 - 数据（Zenodo v1，约 10% 子集）：https://doi.org/10.5281/zenodo.21672850
