@@ -7,11 +7,7 @@
     "val": 307,
     "test": 307
   },
-  "full_split_csv_paths": [
-    "/data/Datasets/JW-FD-fixed/label_splitv2/png/Th{200..2000}/",
-    "/data/shaomf/Mag_TH/data/Th{N}_splitv2/"
-  ],
-  "note": "Official Universe-paper AR membership. Full train/val/test CSVs are not stored in git. seed=62 / 19-AR rebalance is not official.",
+  "note": "Official AR membership (seed 3970). Full train/val/test CSVs are not stored in git.",
   "train": [
     "1139",
     "1141",

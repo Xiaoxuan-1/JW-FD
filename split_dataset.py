@@ -2,24 +2,15 @@
 """
 按活动区 (AR) 划分 train/val/test。
 
-官方划分（Universe 论文 / Mag_TH split-v2）
-----------------------------------------
-分层拒绝采样，seed=3970，checksum ``34781b5227c55284``。
+官方划分：分层拒绝采样，seed=3970。
 每个 NOAA 区落入一个耀斑产能层（multiple X / single X / M5-not-X /
 M1-not-M5 / C-only / quiet），层内够大时再按过日面帧数三分位；
 候选种子须同时满足：val/test 各至少 5 个 X 与 5 个 M5 正样本区、
 24 h 正帧比在 [0.5, 2]、单区不超过该子集正帧的 25%、
 unsigned-flux 与 NL-length 的 val–test Cohen d < 0.30。
 
-本仓库提交冻结的 AR 成员名单 ``split_v2_ar_membership.json``（约 36 KB）。
-全量划分 CSV 不进 git，本地路径：
-
-  * ``/data/Datasets/JW-FD-fixed/label_splitv2/png/Th{200..2000}/``
-  * ``/data/shaomf/Mag_TH/data/Th{N}_splitv2/``（训练索引）
-
-``label/png/`` 下的 seed=62 划分不是论文官方划分。
-重新搜索种子见 ``search_split_v2.py``（需全量标签 CSV）。
-默认 ``split_csv`` 读取上述 AR 名单，而不是再跑一层 X/M/C/0 shuffle。
+冻结的 AR 成员名单见 ``split_v2_ar_membership.json``。
+默认 ``split_csv`` 读取该名单。
 """
 
 import argparse

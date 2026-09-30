@@ -130,14 +130,9 @@ def label_meets_threshold(best_label, threshold):
     return '0'
 
 def hmi_norm(image_file, threshold=None):
-    """HMI 磁图归一化：固定 ±threshold 定标到 0-255。
+    """HMI 磁图归一化：固定 ±threshold 定标到 0–255。
 
-    与旧版的区别：
-      1. NaN 填 0 G（原为 -threshold，把缺测渲染成强负场）
-      2. 固定 ±threshold 定标，不再用逐帧 min/max 自动拉伸
-      3. 不再原地改写入参
-
-    映射：clip(B, -B_th, B_th) 后 (B + B_th) / (2 B_th) * 255。
+    NaN 填 0 G；clip(B, -B_th, B_th) 后 (B + B_th) / (2 B_th) * 255。
     0 G 对应灰阶 127（uint8 向零截断 127.5）。
     """
     if threshold is None:

@@ -19,12 +19,8 @@ Gates:
 Feature gaps on the small X-AR subset are reported, not used as reject gates
 (n~5 is too noisy). Time-based split is not used.
 
-The frozen official assignment is seed=3970 (checksum 34781b5227c55284),
-shipped as split_v2_ar_membership.json. This script only re-searches;
-it does not rewrite labels or emit the huge train/val/test CSVs.
-
-Default CSV (if present):
-  /data/Datasets/JW-FD-fixed/label/png/Th1000/solar_flare_dataset_png_Lat60_Lon60_Th1000.csv
+The frozen official assignment is seed=3970, shipped as split_v2_ar_membership.json.
+This script only re-searches; it does not emit the train/val/test CSVs.
 """
 from __future__ import annotations
 
@@ -390,7 +386,7 @@ def main():
         "--official-dir",
         type=Path,
         default=DEFAULT_OFFICIAL,
-        help="optional seed-62 CSV dir for contrast diagnostics only",
+        help="optional extra split CSV directory",
     )
     args = parser.parse_args()
 
@@ -411,25 +407,23 @@ def main():
         stratum_n[a["stratum"]] += 1
     print("strata", dict(stratum_n))
 
-    official = load_official_assignment(args.official_dir)
-    if official:
-        official_rep = evaluate(official, stats)
+    extra = load_official_assignment(args.official_dir)
+    if extra:
+        extra_rep = evaluate(extra, stats)
         dump_json(
-            root / "seed62_official_diagnostics.json",
+            root / "extra_split_diagnostics.json",
             {
-                "seed": 62,
-                "algorithm": "legacy X/M/C/Quiet 80/10/10 (NOT the Universe official split)",
-                "checksum": checksum_assignment(official),
-                "report": official_rep,
+                "checksum": checksum_assignment(extra),
+                "report": extra_rep,
             },
         )
         print(
-            "seed=62 legacy under v2 gates:",
-            "PASS" if official_rep["ok"] else "FAIL",
-            official_rep["failures"][:8],
+            "extra split:",
+            "PASS" if extra_rep["ok"] else "FAIL",
+            extra_rep["failures"][:8],
         )
     else:
-        print("no seed-62 contrast CSVs at", args.official_dir)
+        print("no extra split CSVs at", args.official_dir)
 
     fail_hist = defaultdict(int)
     tries = []

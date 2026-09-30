@@ -10,7 +10,6 @@
    NaN → 0 G，再 clip 到 ±B_th，线性映射
    (B + B_th) / (2 B_th) * 255 → uint8。
    0 G 对应灰阶 127。默认 B_th = 800 G；十档 200–2000 G，步长 200 G。
-3. 不再使用逐帧 min/max 拉伸，也不把 NaN 填成 -B_th。
 """
 
 import argparse

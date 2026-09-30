@@ -11,10 +11,10 @@
 | 版本 | 内容 | 获取方式 |
 |------|------|----------|
 | Zenodo **v1** | 约 10% 代表性子集 | [doi:10.5281/zenodo.21672850](https://doi.org/10.5281/zenodo.21672850) · [记录页](https://zenodo.org/records/21672850) |
-| Zenodo **v2** | 完整 15 年释放（**同一 Zenodo record**） | 即将发布的 v2 / forthcoming v2 of the same Zenodo record |
+| Zenodo **v2** | 完整 15 年释放（同一条 Zenodo 记录） | 即将发布；DOI 签发后写在本 README |
 | 百度网盘 | [分享链接](https://pan.baidu.com/s/1TxJPOqVKGdU2B8bkblL1XA)（提取码：`gmsm`） | 目前提供 v1 子集目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB |
 
-覆盖 **2011-01-01 至 2025-12-31**。PNG 默认工作点 **800 G**；十档饱和阈值 **200–2000 G，步长 200 G**。官方划分是活动区级 8:1:1 **分层拒绝采样，seed=3970**（不是 seed=62，也不是 19-AR 手调）。
+覆盖 **2011-01-01 至 2025-12-31**。PNG 默认工作点 **800 G**；十档饱和阈值 **200–2000 G，步长 200 G**。官方划分是活动区级 8:1:1 **分层拒绝采样，seed=3970**。冻结的 AR 成员名单见 [`split_v2_ar_membership.json`](split_v2_ar_membership.json)。
 
 Zenodo v1 分卷合包：
 
@@ -23,13 +23,6 @@ cat JW-FD_subset_10pct.tar.zst.*.part > JW-FD_subset_10pct.tar.zst
 zstd -t JW-FD_subset_10pct.tar.zst
 tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 ```
-
-冻结的 AR 成员名单见 [`split_v2_ar_membership.json`](split_v2_ar_membership.json)（checksum `34781b5227c55284`）。全量 train/val/test CSV 体积过大，不进 git。本地路径：
-
-- `/data/Datasets/JW-FD-fixed/label_splitv2/png/Th{200..2000}/`
-- `/data/shaomf/Mag_TH/data/Th{N}_splitv2/`（训练索引）
-
-`label/png/` 下的 seed=62 树**不是**论文官方划分。重新搜索种子用 [`search_split_v2.py`](search_split_v2.py)（需要全量标签 CSV）。
 
 ## 流水线概览
 
@@ -72,7 +65,7 @@ tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 | `PARAMS['max_latitude']` / `PARAMS['max_longitude']` | Step2 日面位置筛选 |
 | `FLARE_LABEL_THRESHOLDS` | 多阈值二分类列，默认 `C1.0, M1.0, M5.0, X1.0` |
 
-PNG 定标：`NaN → 0 G`，`clip(B, -B_th, B_th)`，再 `(B + B_th) / (2 B_th) * 255` → `uint8`。不是逐帧 min/max，也不把 NaN 填成 `-B_th`。
+PNG 定标：`NaN → 0 G`，`clip(B, -B_th, B_th)`，再 `(B + B_th) / (2 B_th) * 255` → `uint8`（0 G 对应灰阶 127）。
 
 输出文件名后缀：`get_output_suffix()` → `Lat{lat}_Lon{lon}_Th{threshold}`。
 
@@ -124,8 +117,7 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 ## 仓库说明
 
 - 本仓库主要包含**代码**与官方 AR 名单；大体积数据、日志未纳入版本控制（见 [`.gitignore`](.gitignore)）。
-- 子集数据请见上方「数据发布」；完整 15 年数据见即将发布的 v2 / forthcoming v2 of the same Zenodo record。
-- 本地备份目录 `2024_test_01-07/` 已忽略，不参与推送。
+- 子集数据请见上方「数据发布」；完整 15 年数据将作为同一条 Zenodo 记录的 v2 发布。
 
 ## 论文
 
@@ -138,7 +130,7 @@ SPIE 题目：*An end-to-end pipeline for multimodal solar flare forecasting dat
 
 ## 引用
 
-若使用本仓库或 JW-FD 数据进行研究，请引用论文，并视情况引用代码仓库与 Zenodo v1 子集。完整 15 年数据请等即将发布的 v2 / forthcoming v2 of the same Zenodo record 签发 DOI 后再引用。
+若使用本仓库或 JW-FD 数据进行研究，请引用论文，并视情况引用代码仓库与 Zenodo v1 子集。完整 15 年数据请等 v2 DOI 签发后再引用。
 
 ```bibtex
 @misc{shao2026jwfd,
