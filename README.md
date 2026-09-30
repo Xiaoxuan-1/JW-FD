@@ -11,7 +11,7 @@
 | 版本 | 内容 | 获取方式 |
 |------|------|----------|
 | Zenodo **v1** | 约 10% 代表性子集 | [doi:10.5281/zenodo.21672850](https://doi.org/10.5281/zenodo.21672850) · [记录页](https://zenodo.org/records/21672850) |
-| Zenodo **v2** | 完整 15 年释放（**同一 record**） | 即将发布。DOI 签发后会写在本 README；**不要猜测 v2 版本号** |
+| Zenodo **v2** | 完整 15 年释放（**同一 Zenodo record**） | 即将发布的 v2 / forthcoming v2 of the same Zenodo record |
 | 百度网盘 | [分享链接](https://pan.baidu.com/s/1TxJPOqVKGdU2B8bkblL1XA)（提取码：`gmsm`） | 目前提供 v1 子集目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB |
 
 覆盖 **2011-01-01 至 2025-12-31**。PNG 默认工作点 **800 G**；十档饱和阈值 **200–2000 G，步长 200 G**。官方划分是活动区级 8:1:1 **分层拒绝采样，seed=3970**（不是 seed=62，也不是 19-AR 手调）。
@@ -124,7 +124,7 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 ## 仓库说明
 
 - 本仓库主要包含**代码**与官方 AR 名单；大体积数据、日志未纳入版本控制（见 [`.gitignore`](.gitignore)）。
-- 子集数据请见上方「数据发布」；完整 15 年数据将作为同一 Zenodo record 的 v2 发布。
+- 子集数据请见上方「数据发布」；完整 15 年数据见即将发布的 v2 / forthcoming v2 of the same Zenodo record。
 - 本地备份目录 `2024_test_01-07/` 已忽略，不参与推送。
 
 ## 论文
@@ -138,7 +138,7 @@ SPIE 题目：*An end-to-end pipeline for multimodal solar flare forecasting dat
 
 ## 引用
 
-若使用本仓库或 JW-FD 数据进行研究，请引用论文，并视情况引用代码仓库与 Zenodo v1 子集。完整 15 年数据请等 v2 DOI 签发后再引用。
+若使用本仓库或 JW-FD 数据进行研究，请引用论文，并视情况引用代码仓库与 Zenodo v1 子集。完整 15 年数据请等即将发布的 v2 / forthcoming v2 of the same Zenodo record 签发 DOI 后再引用。
 
 ```bibtex
 @misc{shao2026jwfd,
