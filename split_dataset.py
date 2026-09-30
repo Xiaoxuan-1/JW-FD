@@ -1,16 +1,83 @@
 # -*- coding: utf-8 -*-
 """
-数据集分层分割工具：按活动区 (AR) 分层划分 train/val/test。
+按活动区 (AR) 划分 train/val/test。
+
+官方划分（Universe 论文 / Mag_TH split-v2）
+----------------------------------------
+分层拒绝采样，seed=3970，checksum ``34781b5227c55284``。
+每个 NOAA 区落入一个耀斑产能层（multiple X / single X / M5-not-X /
+M1-not-M5 / C-only / quiet），层内够大时再按过日面帧数三分位；
+候选种子须同时满足：val/test 各至少 5 个 X 与 5 个 M5 正样本区、
+24 h 正帧比在 [0.5, 2]、单区不超过该子集正帧的 25%、
+unsigned-flux 与 NL-length 的 val–test Cohen d < 0.30。
+
+本仓库提交冻结的 AR 成员名单 ``split_v2_ar_membership.json``（约 36 KB）。
+全量划分 CSV 不进 git，本地路径：
+
+  * ``/data/Datasets/JW-FD-fixed/label_splitv2/png/Th{200..2000}/``
+  * ``/data/shaomf/Mag_TH/data/Th{N}_splitv2/``（训练索引）
+
+``label/png/`` 下的 seed=62 划分不是论文官方划分。
+重新搜索种子见 ``search_split_v2.py``（需全量标签 CSV）。
+默认 ``split_csv`` 读取上述 AR 名单，而不是再跑一层 X/M/C/0 shuffle。
 """
 
 import argparse
 import csv
+import json
 import os
 import random
 import re
 import time
 from collections import defaultdict
 from datetime import datetime
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+OFFICIAL_SPLIT_SEED = 3970
+OFFICIAL_SPLIT_CHECKSUM = "34781b5227c55284"
+DEFAULT_AR_MEMBERSHIP = os.path.join(_HERE, "split_v2_ar_membership.json")
+
+
+def load_ar_membership(path=None):
+    """读取冻结的 seed=3970 AR 成员名单，返回 {ar_id: split}。"""
+    path = path or DEFAULT_AR_MEMBERSHIP
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    assign = {}
+    for split in ("train", "val", "test"):
+        for ar_id in data.get(split, []):
+            assign[str(ar_id)] = split
+    return assign, data
+
+
+def apply_ar_membership(ar_data_map, assign):
+    """按冻结名单把已解析的 AR 分到 train/val/test。"""
+    train_ars, val_ars, test_ars, leftover = [], [], [], []
+    for ar_id in ar_data_map:
+        split = assign.get(str(ar_id))
+        if split == "train":
+            train_ars.append(ar_id)
+        elif split == "val":
+            val_ars.append(ar_id)
+        elif split == "test":
+            test_ars.append(ar_id)
+        else:
+            leftover.append(ar_id)
+    split_info = {
+        "official": {
+            "seed": OFFICIAL_SPLIT_SEED,
+            "checksum": OFFICIAL_SPLIT_CHECKSUM,
+            "total": len(ar_data_map),
+            "train": len(train_ars),
+            "val": len(val_ars),
+            "test": len(test_ars),
+            "leftover": leftover,
+            "train_ars": sorted(train_ars),
+            "val_ars": sorted(val_ars),
+            "test_ars": sorted(test_ars),
+        }
+    }
+    return train_ars, val_ars, test_ars, split_info
 
 
 def extract_ar_id(filename):
@@ -281,11 +348,15 @@ def split_csv(
     train_ratio=0.8,
     val_ratio=0.1,
     test_ratio=0.1,
-    seed=62,
+    seed=OFFICIAL_SPLIT_SEED,
     log_path=None,
+    ar_membership=DEFAULT_AR_MEMBERSHIP,
 ):
     """
-    对单个 CSV 按 AR 分层划分 train/val/test，输出与输入同目录。
+    对单个 CSV 按 AR 划分 train/val/test，输出与输入同目录。
+
+    默认读取 ``split_v2_ar_membership.json``（seed=3970 官方名单）。
+    传入 ``ar_membership=None`` 时退回 X/M/C/0 分层 shuffle（非官方）。
 
     Returns:
         dict: 分割统计与输出文件路径
@@ -304,9 +375,23 @@ def split_csv(
     if total_ars == 0:
         raise ValueError(f"未解析到有效活动区数据: {input_csv}")
 
-    train_ars, val_ars, test_ars, split_info = stratified_split_ars(
-        ar_max_label, train_ratio, val_ratio, test_ratio
-    )
+    if ar_membership:
+        if not os.path.exists(ar_membership):
+            raise FileNotFoundError(f"官方 AR 名单不存在: {ar_membership}")
+        assign, _meta = load_ar_membership(ar_membership)
+        train_ars, val_ars, test_ars, split_info = apply_ar_membership(
+            ar_data_map, assign
+        )
+        leftover = split_info["official"]["leftover"]
+        if leftover:
+            print(
+                f"警告: {len(leftover)} 个 AR 不在 seed=3970 名单中，已排除: "
+                f"{leftover[:12]}{'...' if len(leftover) > 12 else ''}"
+            )
+    else:
+        train_ars, val_ars, test_ars, split_info = stratified_split_ars(
+            ar_max_label, train_ratio, val_ratio, test_ratio
+        )
     sample_stats = calculate_sample_stats(ar_data_map, train_ars, val_ars, test_ars)
 
     output_prefix = get_output_prefix(input_csv)
@@ -361,13 +446,30 @@ def split_csv(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="按 AR 分层划分 train/val/test")
+    parser = argparse.ArgumentParser(
+        description="按 AR 划分 train/val/test（默认 seed=3970 官方名单）"
+    )
     parser.add_argument('--input', required=True, help='输入 CSV 路径')
     parser.add_argument('--train-ratio', type=float, default=0.8)
     parser.add_argument('--val-ratio', type=float, default=0.1)
     parser.add_argument('--test-ratio', type=float, default=0.1)
-    parser.add_argument('--seed', type=int, default=62)
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=OFFICIAL_SPLIT_SEED,
+        help=f'仅在 --no-ar-list 时生效；官方划分为 {OFFICIAL_SPLIT_SEED}',
+    )
     parser.add_argument('--log', default=None, help='分割日志输出路径')
+    parser.add_argument(
+        '--ar-list',
+        default=DEFAULT_AR_MEMBERSHIP,
+        help='官方 AR 成员 JSON（默认 split_v2_ar_membership.json）',
+    )
+    parser.add_argument(
+        '--no-ar-list',
+        action='store_true',
+        help='不用官方名单，退回 X/M/C/0 分层 shuffle（非论文官方划分）',
+    )
     args = parser.parse_args()
 
     result = split_csv(
@@ -377,6 +479,7 @@ def main():
         test_ratio=args.test_ratio,
         seed=args.seed,
         log_path=args.log,
+        ar_membership=None if args.no_ar_list else args.ar_list,
     )
 
     print(f"分割完成: {result['total_rows']} 行")

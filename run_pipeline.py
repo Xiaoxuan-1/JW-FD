@@ -309,7 +309,7 @@ def print_usage():
 配置文件: config.py
   - DATA_ROOT: 数据根目录路径
   - START_YEAR, END_YEAR: 年份范围
-  - mag_threshold: 磁场归一化阈值 (200/500/1000)
+  - mag_threshold: 磁场饱和阈值，默认 800 G（十档 200–2000，步长 200）
   - prediction_hours: 耀斑预测窗口，int 或 list[int]（Step4/5 一次写入多列）
   - max_workers: 并行进程数
 

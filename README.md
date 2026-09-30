@@ -1,19 +1,22 @@
-# JW-FlareDataset
+# JW-FD
 
 基于 **HMI 磁图** 与 **NOAA/SRS、Events** 数据，从全日面 FITS 裁剪活动区、提取磁图特征，并结合耀斑事件表构建多阈值、多预测窗口的太阳耀斑数据集（CSV + 可选 PNG / 视频）。
 
-本仓库主要提供**数据集构造流程代码**；约 **1/10** 抽样子集（FITS + PNG Th1000 + movies + 标签，按 AR 对齐）可通过下方链接下载。完整版计划后续发布至国家天文数据中心（NADC）。
+本仓库是 Universe 论文的开源构建流水线：<https://github.com/Xiaoxuan-1/JW-FD>。
 
 论文：[JW-FD: A Long Horizon Multimodal Solar Flare Forecasting Dataset](https://arxiv.org/abs/2608.19195)（arXiv:2608.19195）
 
-## 数据下载（10% 子集）
+## 数据发布
 
-| 渠道 | 链接 | 说明 |
-|------|------|------|
-| **Zenodo** | [DOI: 10.5281/zenodo.21672850](https://doi.org/10.5281/zenodo.21672850) · [记录页](https://zenodo.org/records/21672850) | 分卷 `JW-FD_subset_10pct.tar.zst.*.part`（约 4 GiB/卷）+ 合包说明 |
-| **百度网盘** | [分享链接](https://pan.baidu.com/s/1TxJPOqVKGdU2B8bkblL1XA)（提取码：`gmsm`） | 目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB；**永久有效** |
+| 版本 | 内容 | 获取方式 |
+|------|------|----------|
+| Zenodo **v1** | 约 10% 代表性子集 | [doi:10.5281/zenodo.21672850](https://doi.org/10.5281/zenodo.21672850) · [记录页](https://zenodo.org/records/21672850) |
+| Zenodo **v2** | 完整 15 年释放（**同一 record**） | 即将发布。DOI 签发后会写在本 README；**不要猜测 v2 版本号** |
+| 百度网盘 | [分享链接](https://pan.baidu.com/s/1TxJPOqVKGdU2B8bkblL1XA)（提取码：`gmsm`） | 目前提供 v1 子集目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB |
 
-### Zenodo 合包与解压
+覆盖 **2011-01-01 至 2025-12-31**。PNG 默认工作点 **800 G**；十档饱和阈值 **200–2000 G，步长 200 G**。官方划分是活动区级 8:1:1 **分层拒绝采样，seed=3970**（不是 seed=62，也不是 19-AR 手调）。
+
+Zenodo v1 分卷合包：
 
 ```bash
 cat JW-FD_subset_10pct.tar.zst.*.part > JW-FD_subset_10pct.tar.zst
@@ -21,13 +24,20 @@ zstd -t JW-FD_subset_10pct.tar.zst
 tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 ```
 
+冻结的 AR 成员名单见 [`split_v2_ar_membership.json`](split_v2_ar_membership.json)（checksum `34781b5227c55284`）。全量 train/val/test CSV 体积过大，不进 git。本地路径：
+
+- `/data/Datasets/JW-FD-fixed/label_splitv2/png/Th{200..2000}/`
+- `/data/shaomf/Mag_TH/data/Th{N}_splitv2/`（训练索引）
+
+`label/png/` 下的 seed=62 树**不是**论文官方划分。重新搜索种子用 [`search_split_v2.py`](search_split_v2.py)（需要全量标签 CSV）。
+
 ## 流水线概览
 
 | Step | 脚本 | 说明 |
 |------|------|------|
 | 1 | `step1_extract_flare_labels.py` | 从 NOAA Events（XRA）提取耀斑记录 → `flare_labels.csv`（含 Begin / Max / End 时间与等级） |
 | 2 | `step2_crop_active_regions.py` | 按 SRS 位置与 HMI 全日面 FITS 裁剪 **600×600** 活动区子图 |
-| 3 | `step3_convert_to_png.py` | 裁剪 FITS → PNG（磁场阈值由 `mag_threshold` 决定输出目录名） |
+| 3 | `step3_convert_to_png.py` | 裁剪 FITS → PNG。左右翻转后按固定 ±B_th 定标（NaN→0 G，0 G→灰阶 127） |
 | 4 | `step4_generate_dataset_fits.py` | 从 FITS 提取 **29 维**特征 + 标签 → `solar_flare_dataset_fits_{suffix}.csv` |
 | 5 | `step5_generate_dataset_png.py` | 从 PNG 提取特征 + 标签 → `solar_flare_dataset_png_{suffix}.csv` |
 | 6 | `step6_make_movie.py` | 按活动区 PNG 序列生成演化视频（`movies_600_Th{mag_threshold}`） |
@@ -36,6 +46,7 @@ tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 
 - **非交互 / 适合 `nohup`**：`python run_pipeline.py [起始步] [结束步]`  
 - **交互菜单**：`python main_pipeline.py`
+- **多阈值增量**：`python batch_update_thresholds.py`（默认十档 + seed 3970 名单划分）
 
 ## 环境依赖
 
@@ -53,11 +64,15 @@ tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 |----|------|
 | `DATA_ROOT` | 原始数据根（下含 `Labels`、`Fits` 等） |
 | `OUTPUT_PATH` | 中间结果与 CSV、标签、日志输出根目录 |
-| `START_YEAR` / `END_YEAR` | 参与处理的日历年；Step3–6 会按文件名中的 `YYYYMMDD` 过滤 |
-| `PARAMS['mag_threshold']` | 磁图归一化阈值（如 200 / 500 / 1000），影响 PNG 与 movies 子目录名 |
+| `START_YEAR` / `END_YEAR` | 默认 **2011–2025**；Step3–6 会按文件名中的 `YYYYMMDD` 过滤 |
+| `PARAMS['mag_threshold']` | PNG 默认工作点 **800 G** |
+| `PARAMS['png_thresholds']` | 十档：`200, 400, …, 2000` |
+| `SPLIT_SEED` | 官方划分 **3970** |
 | `PARAMS['prediction_hours']` | 预测窗口（小时），可为单个 `int` 或 `list[int]`，与多列标签对应 |
-| `PARAMS['max_latitude']` / `max_longitude']` | Step2 日面位置筛选 |
+| `PARAMS['max_latitude']` / `PARAMS['max_longitude']` | Step2 日面位置筛选 |
 | `FLARE_LABEL_THRESHOLDS` | 多阈值二分类列，默认 `C1.0, M1.0, M5.0, X1.0` |
+
+PNG 定标：`NaN → 0 G`，`clip(B, -B_th, B_th)`，再 `(B + B_th) / (2 B_th) * 255` → `uint8`。不是逐帧 min/max，也不把 NaN 填成 `-B_th`。
 
 输出文件名后缀：`get_output_suffix()` → `Lat{lat}_Lon{lon}_Th{threshold}`。
 
@@ -80,6 +95,13 @@ FITS / PNG 两套 CSV 仅图像来源不同，列结构一致（文件名分别�
 
 当前实现中，**时间窗口与正样本语义**以 Step4/5 中 `get_flare_label` 为准（严格预测：半开区间 `[Begin_Time - hr, Begin_Time)`，爆发开始时刻及之后不计入该窗口正类；具体以代码为准）。
 
+划分：
+
+```bash
+python split_dataset.py --input /path/to/solar_flare_dataset_png_Lat60_Lon60_Th800.csv
+# 默认使用 split_v2_ar_membership.json（seed 3970）
+```
+
 ## 常用命令
 
 ```bash
@@ -92,19 +114,31 @@ python run_pipeline.py 1 3
 # 仅 Step 4
 python run_pipeline.py 4 4
 
+# 十档 PNG + CSV（默认 200–2000 G）
+python batch_update_thresholds.py
+
 # 后台示例
 nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 ```
 
 ## 仓库说明
 
-- 本仓库主要包含**代码**；大体积数据、日志未纳入版本控制（见 [`.gitignore`](.gitignore)）。
-- 子集数据请见上方「数据下载」；完整版不在本仓库中。
+- 本仓库主要包含**代码**与官方 AR 名单；大体积数据、日志未纳入版本控制（见 [`.gitignore`](.gitignore)）。
+- 子集数据请见上方「数据发布」；完整 15 年数据将作为同一 Zenodo record 的 v2 发布。
 - 本地备份目录 `2024_test_01-07/` 已忽略，不参与推送。
+
+## 论文
+
+| 稿件 | 路径 | 状态 |
+|------|------|------|
+| SPIE Proceedings（ATI 2026, **14155-94**） | [`paper/SPIE/`](paper/SPIE/)（仓库内为快照） | **已发表，稿件冻结。最终版在中国科技云 Overleaf**（[latex.cstcloud.cn](https://latex.cstcloud.cn)；2026-09-01 记录） |
+| MDPI *Universe* 期刊稿 | [`paper/universe/`](paper/universe/) | 进行中；数据条款以该稿为准（Zenodo v1 + 即将发布的 v2） |
+
+SPIE 题目：*An end-to-end pipeline for multimodal solar flare forecasting dataset construction*。最后一次修改在中国科技云 Overleaf 完成，那里才是投稿/发表用的最终源稿；本仓库 `paper/SPIE/` 仅作本地快照，可能落后于 Overleaf。详情见 [`paper/SPIE/README.md`](paper/SPIE/README.md)。期刊稿请只改 `paper/universe/`。
 
 ## 引用
 
-若使用本仓库或 JW-FD 数据进行研究，请引用论文，并视情况引用代码仓库与 Zenodo 子集：
+若使用本仓库或 JW-FD 数据进行研究，请引用论文，并视情况引用代码仓库与 Zenodo v1 子集。完整 15 年数据请等 v2 DOI 签发后再引用。
 
 ```bibtex
 @misc{shao2026jwfd,
@@ -118,6 +152,6 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 }
 ```
 
-- 论文：https://arxiv.org/abs/2608.19195  
-- 代码：https://github.com/Xiaoxuan-1/JW-FD  
-- 数据（Zenodo 10% 子集）：https://doi.org/10.5281/zenodo.21672850  
+- 论文：https://arxiv.org/abs/2608.19195
+- 代码：https://github.com/Xiaoxuan-1/JW-FD
+- 数据（Zenodo v1，约 10% 子集）：https://doi.org/10.5281/zenodo.21672850

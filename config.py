@@ -153,8 +153,10 @@ PARAMS = {
     'max_latitude': 60,
     'max_longitude': 60,
     
-    # 磁场归一化参数 (可选值: 200, 500, 1000)
-    'mag_threshold': 1000,  # 选择: 200 | 500 | 1000
+    # 磁场归一化：固定 ±B_th 定标到 8-bit PNG（NaN→0 G，0 G→灰阶 127）。
+    # 论文默认工作点 800 G；发布十档 200–2000 G，步长 200 G。
+    'mag_threshold': 800,
+    'png_thresholds': [200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000],
     
     # 耀斑预测窗口（小时）；可为 int 或 list[int]，一次生成多窗口标签列
     'prediction_hours': [1, 3, 6, 12, 24, 48, 72],
@@ -169,6 +171,22 @@ PARAMS = {
     'centroid_search_size': 80,    # 重心搜索半径 (像素)
     'centroid_threshold': 100,     # 重心计算磁场阈值 (Gauss)
 }
+
+
+# 论文官方划分：分层拒绝采样，seed=3970（不是 seed=62 / 19-AR 手调）。
+SPLIT_SEED = 3970
+
+
+def get_png_dir(threshold=None):
+    """某个磁场阈值对应的 PNG 输出根目录。"""
+    if threshold is None:
+        threshold = PARAMS['mag_threshold']
+    return f"{OUTPUT_PATH}/png_600_Th{threshold}"
+
+
+def get_png_thresholds():
+    """Step3 可生成的阈值列表（升序去重）：200–2000 G，步长 200 G。"""
+    return sorted({int(t) for t in PARAMS['png_thresholds']})
 
 
 def get_prediction_hours_list():

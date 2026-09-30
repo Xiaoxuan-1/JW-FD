@@ -253,7 +253,7 @@ def print_usage():
   python main_pipeline.py 4                         # 只执行步骤 4
 
 配置文件: config.py
-  - mag_threshold: 磁场归一化阈值 (200/500/1000)
+  - mag_threshold: 磁场饱和阈值，默认 800 G（十档 200–2000，步长 200）
   - prediction_hours: 耀斑预测窗口，int 或 list[int]（如 [1,3,6,12,24,48,72]），Step4/5 一次写入多列）
   - max_workers: 并行进程数
 """)

@@ -65,8 +65,8 @@ from utils import (
     load_existing_csv_column,
 )
 
-DEFAULT_THRESHOLDS = [400, 600, 800, 1000, 2000]
-SPLIT_SEED = 62
+DEFAULT_THRESHOLDS = [200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000]
+SPLIT_SEED = 3970
 
 
 def get_png_csv_path(threshold):

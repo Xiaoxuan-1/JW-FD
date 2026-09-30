@@ -130,27 +130,22 @@ def label_meets_threshold(best_label, threshold):
     return '0'
 
 def hmi_norm(image_file, threshold=None):
-    """HMI磁图归一化处理
-    
-    Args:
-        image_file: 输入图像数组
-        threshold: 磁场阈值，默认使用配置文件中的值 (200/500/1000)
+    """HMI 磁图归一化：固定 ±threshold 定标到 0-255。
+
+    与旧版的区别：
+      1. NaN 填 0 G（原为 -threshold，把缺测渲染成强负场）
+      2. 固定 ±threshold 定标，不再用逐帧 min/max 自动拉伸
+      3. 不再原地改写入参
+
+    映射：clip(B, -B_th, B_th) 后 (B + B_th) / (2 B_th) * 255。
+    0 G 对应灰阶 127（uint8 向零截断 127.5）。
     """
     if threshold is None:
         threshold = PARAMS['mag_threshold']
-    
-    # 处理NaN值
-    image_file[np.isnan(image_file)] = -threshold
-    # 设置阈值
-    arr1 = (image_file > threshold)
-    image_file[arr1] = threshold
-    arr0 = (image_file < -threshold)
-    image_file[arr0] = -threshold
-    
-    # 获取最小值和最大值
-    min_val, max_val = np.min(image_file), np.max(image_file)
-    hmi_mag = (image_file - min_val) / (max_val - min_val) * 255
-    return hmi_mag.astype('uint8')
+    arr = np.asarray(image_file, dtype=np.float32).copy()
+    arr[np.isnan(arr)] = 0.0
+    arr = np.clip(arr, -threshold, threshold)
+    return ((arr + threshold) / (2.0 * threshold) * 255.0).astype('uint8')
 
 def ensure_directory(path):
     """确保目录存在（多进程安全）"""

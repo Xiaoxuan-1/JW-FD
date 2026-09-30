@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-步骤3: 将FITS文件转换为PNG图像 (修正版)
+步骤3: 将FITS文件转换为PNG图像
 输入: 裁剪后的FITS文件 (原始方向)
 输出: PNG图像文件 (翻转修正后的视觉方向)
 
-修正点:
-在此步骤进行 np.fliplr (左右翻转)，将 HMI 的原始数据修正为符合人类直觉的"上北左东"方向。
+处理:
+1. np.fliplr（左右翻转），将 HMI 裁剪修正为上北左东（论文：mirrored left to right）。
+2. 归一化与 JW-FD-fixed / Universe 论文一致：
+   NaN → 0 G，再 clip 到 ±B_th，线性映射
+   (B + B_th) / (2 B_th) * 255 → uint8。
+   0 G 对应灰阶 127。默认 B_th = 800 G；十档 200–2000 G，步长 200 G。
+3. 不再使用逐帧 min/max 拉伸，也不把 NaN 填成 -B_th。
 """
 
 import argparse
