@@ -33,6 +33,7 @@ ENTRY
     author
     booktitle
     chapter
+    doi
     edition
     editor
     howpublished
@@ -329,6 +330,17 @@ FUNCTION {format.date}
   if$
 }
 
+%% SPIE Proceedings official sample uses http://dx.doi.org/...
+%% Use \spiedoi (defined in main.tex via hyperref \href) so a line-wrapped
+%% DOI remains one clickable link; plain \url alone is often only partially
+%% auto-detected by PDF viewers when broken across lines.
+FUNCTION {format.doi}
+{ doi empty$
+    { "" }
+    { "\spiedoi{" doi * "}" * }
+  if$
+}
+
 FUNCTION {format.btitle}
 { title emphasize
 }
@@ -434,13 +446,16 @@ FUNCTION {format.journal.volume.number}
     { "empty " t * " in " * cite$ * warning$ ""}
     { journal emphasize }
   if$
-  volume empty$      %% kmh - warning if no volume
-    { "empty volume in " cite$ * warning$ " " *}
-    { "~" * volume bold *}      %% kmh - make volume bold
-%%    { "vol.~" volume * }
+  volume empty$
+    { "empty volume in " cite$ * warning$ }
+    { "~" * volume bold * }
   if$
   month empty$
-    { format.number *}
+    { number empty$
+        'skip$
+        { format.number * }
+      if$
+    }
     'skip$
   if$
 }
@@ -650,6 +665,7 @@ FUNCTION {article}
   if$
   new.block
   note output
+  format.doi output
   fin.entry
 }
 
@@ -869,6 +885,7 @@ FUNCTION {misc}
   format.date output
   new.block
   note output
+  format.doi output
   fin.entry
   empty.misc.check
 }

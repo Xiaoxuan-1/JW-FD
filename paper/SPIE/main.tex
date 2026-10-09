@@ -4,8 +4,12 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{booktabs}
+\usepackage{url}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+% hidelinks: keep SPIE look; \spiedoi keeps full DOI as one PDF link even when the display wraps
+\usepackage[hidelinks]{hyperref}
+\newcommand{\spiedoi}[1]{\href{http://dx.doi.org/#1}{\nolinkurl{http://dx.doi.org/#1}}}
 
 \title{An end-to-end pipeline for multimodal solar flare forecasting dataset construction}
 
@@ -14,7 +18,7 @@
 \supit{a}National Astronomical Observatories, Chinese Academy of Sciences, Beijing, China
 }
 
-\authorinfo{Correspondence: Shao Mingfu. E-mail: shaomf@bao.ac.cn}
+\authorinfo{Correspondence: Lin Jiaben. E-mail: jiabenlin@bao.ac.cn}
 
 \begin{document}
 \maketitle
@@ -30,7 +34,7 @@ Solar flares are primary drivers of space weather; forecasting eruption from pho
 
 Solar flares are among the most energetic manifestations of solar magnetic activity. Major flares (M/X-class on the GOES scale) can disrupt satellite operations, aviation communications, and power-grid infrastructure. Forecasting flare occurrence \emph{before} eruption from photospheric magnetograms is therefore a priority for both fundamental solar physics and operational space-weather services.\cite{Shao2025review,Toriumi2019,Leka2019}
 
-Photospheric line-of-sight (LOS) magnetograms encode magnetic complexity---gradient concentrations, neutral-line topology, and flux imbalance---that precede many eruptive events.\cite{Boucheron2015,Bobra2014} Quantitative descriptors derived from magnetograms have long supported statistical and machine-learning (ML) flare-forecasting models. Recent work extends this paradigm to convolutional networks, vision transformers, and multimodal large language models (MLLMs) that consume both images and structured physical parameters.\cite{Shao2025jwflare} Such methods require corpora in which visual, tabular, and label modalities are co-registered in space and time, with evaluation protocols that prevent information leakage across training and test partitions.
+Photospheric line-of-sight (LOS) magnetograms encode magnetic complexity---gradient concentrations, neutral-line topology, and flux imbalance---that precede many eruptive events.\cite{Boucheron2015,Bobra2014} Quantitative descriptors derived from magnetograms have long supported statistical and machine-learning (ML) flare-forecasting models. Recent work extends this paradigm to convolutional networks, vision transformers, and multimodal large language models (MLLMs) that consume both images and structured physical parameters.\cite{Shao2025jwflare,Shao2026jwvl} Such methods require corpora in which visual, tabular, and label modalities are co-registered in space and time, with evaluation protocols that prevent information leakage across training and test partitions.
 
 Traditional flare datasets frequently exhibit four limitations: (1)~temporal coverage shorter than a full solar cycle; (2)~release of either images \emph{or} tabular parameters but not both at pixel-level alignment; (3)~fixed label definitions that do not support multiple forecast horizons or intensity thresholds; and (4)~sample-level splits that place different timestamps of the same AR in training and test sets, inflating performance through temporal autocorrelation.\cite{Bloomfield2012,Barnes2016}
 
@@ -51,7 +55,7 @@ Flare forecasting from photospheric magnetic fields has progressed from hand-cra
 
 Dataset construction for this field remains fragmented. Many releases provide either image sequences or tabular feature tables without guaranteed pixel-level correspondence. Temporal spans are often limited to a single solar cycle or a few years. Label definitions vary across studies: some treat any pre-flare magnetogram as positive, while operational forecasting requires explicit forecast horizons. Bloomfield et al.\ emphasized the need for standardized benchmarks and metrics;\cite{Bloomfield2012} Barnes et al.\ showed that evaluation design---including whether consecutive days from the same AR appear in both training and test sets---strongly affects reported skill scores.\cite{Barnes2016,Leka2019}
 
-Recent MLLM-based approaches motivate multimodal corpora that bind magnetograms, physical descriptors, and flare metadata in a single index.\cite{Shao2025jwflare,Shao2025review} JW-FD is designed as infrastructure for such methods rather than as a model paper: it supplies aligned FITS/PNG/CSV/MP4 products, configurable labels, and a documented AR-level split.
+Recent MLLM-based and vision--language approaches motivate multimodal corpora that bind magnetograms, physical descriptors, and flare metadata in a single index.\cite{Shao2025jwflare,Shao2026jwvl,Shao2025review} JW-FD is designed as infrastructure for such methods rather than as a model paper: it supplies aligned FITS/PNG/CSV/MP4 products, configurable labels, and a documented AR-level split.
 
 \begin{table}[t]
 \caption{Comparison of JW-FD with representative prior flare-forecasting datasets.}
@@ -299,7 +303,7 @@ Researchers should note that positive labels are rare for high thresholds (M5.0,
 
 \subsection{Discussion and limitations}
 
-JW-FD serves as infrastructure for both classical tabular ML on 29-D features and end-to-end vision or MLLM approaches on PNG/MP4 inputs.\cite{Shao2025jwflare} Dual FITS and PNG CSV branches support physics-faithful analysis (Gauss-scale features) and vision-ready workflows (normalized intensities) from a single pipeline run.
+JW-FD serves as infrastructure for both classical tabular ML on 29-D features and end-to-end vision or MLLM approaches on PNG/MP4 inputs.\cite{Shao2025jwflare,Shao2026jwvl} Dual FITS and PNG CSV branches support physics-faithful analysis (Gauss-scale features) and vision-ready workflows (normalized intensities) from a single pipeline run.
 
 Current limitations include: (1)~LOS magnetograms only---vector magnetic field data (e.g., SHARP) are not yet integrated;\cite{Bobra2014} (2)~reliance on NOAA AR numbering and SRS daily positions, which may lag rapid flux emergence; (3)~disk-center bias from the $|\mathrm{longitude}| \le 60^\circ$ filter, excluding high-latitude and limb ARs; and (4)~12-minute HMI cadence, which may undersample fast-evolving pre-flare configurations. Planned extensions include SDO/AIA multi-wavelength channels, SHARP vector-field ingestion, and operational near-real-time pipeline hooks.
 
@@ -308,7 +312,7 @@ Current limitations include: (1)~LOS magnetograms only---vector magnetic field d
 
 We presented JW-FD, a 14-year multimodal solar flare forecasting dataset constructed through a reproducible six-step pipeline from SDO/HMI magnetograms and NOAA flare reports. The release provides 1.75~million co-registered snapshots across FITS, PNG, CSV, and MP4 modalities, with 66-dimensional records linking 29 magnetic features to configurable pre-eruption labels over seven forecast horizons and four GOES thresholds. Multimodal spatiotemporal alignment is enforced through a composite AR-number and timestamp key. An AR-level 8:1:1 split establishes a leakage-free evaluation protocol for classical ML, deep vision models, and MLLMs.
 
-Future work will integrate multi-wavelength SDO/AIA observations, extend temporal coverage through Solar Cycle~25, incorporate vector magnetogram parameters, and develop operational ingestion interfaces for near-real-time space-weather forecasting. The open-source pipeline (\texttt{https://github.com/Xiaoxuan-1/JW-FD}) enables the community to reproduce, extend, and benchmark flare-forecasting methods on a shared, long-horizon data foundation.
+Future work will integrate multi-wavelength SDO/AIA observations, extend temporal coverage through Solar Cycle~25, incorporate vector magnetogram parameters, and develop operational ingestion interfaces for near-real-time space-weather forecasting. Beyond offline forecasting benchmarks, JW-FD can also support AI-driven solar observing systems that need flare-aware context or multimodal solar representations.\cite{Lin2026sidest,Tong2026astclaw,Tong2026aims} The open-source pipeline (\texttt{https://github.com/Xiaoxuan-1/JW-FD}) enables the community to reproduce, extend, and benchmark flare-forecasting methods on a shared, long-horizon data foundation.
 
 \acknowledgments
 We thank the SDO/HMI team and NOAA Space Weather Prediction Center for providing open data products. This work was supported by the National Astronomical Observatories, Chinese Academy of Sciences.

@@ -1,23 +1,50 @@
 # JW-FD SPIE Proceedings Paper
 
-LaTeX source for the SPIE conference manuscript describing the JW-FD multimodal solar flare forecasting dataset.
+**Status: published. Manuscript frozen — do not edit.**
 
-## Build
+Recorded 2026-09-01. This proceedings paper is out; author-side revisions are closed.
+
+**Canonical final version:** last edits were done on **中国科技云 Overleaf** ([https://latex.cstcloud.cn](https://latex.cstcloud.cn)). That Overleaf project is the author-of-record source that was submitted/published. Files under `paper/SPIE/` in this repo are a local snapshot and **may lag** the Overleaf final; do not treat them as the camera-ready copy, and do not sync local changes back as if they were the published text.
+
+Do not change `main.tex`, `references.bib`, figures, style files, or rebuild the PDF for content edits unless the authors explicitly request an erratum. Ongoing JW-FD journal work belongs in `paper/universe/` (MDPI *Universe*), not here.
+
+## Publication
+
+| Item | Value |
+|------|--------|
+| Title | An end-to-end pipeline for multimodal solar flare forecasting dataset construction |
+| Authors | Shao Mingfu, Lin Jiaben, Wang Hui, Tong Liyue, Li Yuyang |
+| Venue | SPIE Astronomical Telescopes + Instrumentation 2026, Copenhagen, 5–10 July 2026 |
+| Proceedings | Proc. SPIE **14155**, Software and Cyberinfrastructure for Astronomy IX |
+| Paper ID | **14155-94** |
+| Final source | 中国科技云 Overleaf（[latex.cstcloud.cn](https://latex.cstcloud.cn)）— last edits and canonical author files |
+| Local snapshot | `main.pdf` / TeX in this directory (not guaranteed identical to Overleaf) |
+
+Suggested citation (fill in the official DOI from the SPIE Digital Library if needed):
+
+```bibtex
+@inproceedings{Shao2026jwfdspie,
+  author    = {Shao, Mingfu and Lin, Jiaben and Wang, Hui and Tong, Liyue and Li, Yuyang},
+  title     = {An end-to-end pipeline for multimodal solar flare forecasting dataset construction},
+  booktitle = {Software and Cyberinfrastructure for Astronomy IX},
+  series    = {Proc. SPIE},
+  volume    = {14155},
+  number    = {14155-94},
+  year      = {2026},
+  address   = {Copenhagen, Denmark}
+}
+```
+
+## Build (archival only)
 
 Requires a TeX distribution with `pdflatex`, `bibtex`, and packages: `graphicx`, `amsmath`, `booktabs`, `tikz` (with `positioning`, `arrows.meta`, `shapes.geometric`).
 
 ```bash
-cd paper
+cd paper/SPIE
 make
 ```
 
-Output: `main.pdf` (target: **6 pages**, SPIE Proceedings format)
-
-The expanded manuscript includes Related Work, detailed pipeline methodology, configuration and feature tables, label-window figure, multimodal alignment section, and evaluation-protocol discussion.
-
-**Overleaf (recommended if local TeX is unavailable):** Upload the entire `paper/` folder to [Overleaf SPIE template](https://www.overleaf.com/latex/templates/spie-proceedings-style-template-and-guidelines-for-authors/qpkhfttzvnhz), replace the body with `main.tex`, and set the main document to `main.tex`. Compile with pdfLaTeX + BibTeX.
-
-Estimated length: ~2,750 words of prose plus 6 tables and 2 figures $\approx$ 6 SPIE pages at 10pt single column.
+Output: `main.pdf` (SPIE Proceedings format, ~6 pages).
 
 Manual build:
 
@@ -28,18 +55,14 @@ pdflatex main
 pdflatex main
 ```
 
-## SPIE submission notes
-
-- Uses official `spie.cls` and `spiebib.bst` (included in this directory).
-- Target length: 6 pages (minimum for some SPIE conferences).
-- Embed all fonts in the final PDF before submission.
-- Overleaf: upload this folder or use the [SPIE Proceedings template](https://www.overleaf.com/latex/templates/spie-proceedings-style-template-and-guidelines-for-authors/qpkhfttzvnhz) and copy `main.tex` content.
-
 ## Files
 
 | File | Description |
 |------|-------------|
-| `main.tex` | Manuscript |
-| `references.bib` | Bibliography |
+| `main.tex` | Frozen manuscript |
+| `references.bib` | Frozen bibliography |
 | `figures/pipeline.tex` | TikZ pipeline diagram |
+| `figures/label_timeline.tex` | Label-window figure |
 | `spie.cls` / `spiebib.bst` | SPIE style files |
+| `SPIE_Poster_shaomf.pdf` | Conference poster |
+| `doi_examples/` | Reference PDFs used during DOI-link checks |
