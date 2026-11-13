@@ -7,6 +7,7 @@
 
 import glob
 import gc
+import math
 import os
 import re
 import argparse
@@ -27,6 +28,8 @@ from utils import setup_logging, ensure_directory
 SEARCH_SIZE = PARAMS.get('centroid_search_size', 80)
 CALC_THRESHOLD = PARAMS.get('centroid_threshold', 100)
 MAX_LON = PARAMS.get('max_longitude', 60)
+# 日面经度随时间的大致变化，用来在 SRS 当天里选最靠近日面中心的一帧。
+SYNODIC_DEG_PER_DAY = 13.2
 
 def extract_time_from_fits_filename(filename):
     """从文件名提取时间字符串 YYYY-MM-DDTHH:MM:SS"""
@@ -95,12 +98,13 @@ def build_ar_reference_coords_raw_multi_year():
                         continue
                     
                     today_ars.append(nmbr)
-                    if nmbr not in ar_raw_data:
-                        ar_raw_data[nmbr] = {
+                    days = ar_raw_data.setdefault(nmbr, {'days': []})['days']
+                    if not any(item['date'] == srs_date for item in days):
+                        days.append({
+                            'date': srs_date,
                             'lat': lat,
                             'lon': lon,
-                            'first_date': srs_date
-                        }
+                        })
                 except:
                     continue
             
@@ -157,64 +161,83 @@ def get_centroid_fast(fits_path, rough_lon, rough_lat):
     except:
         return None
 
+def hours_from_midnight(fits_path):
+    """文件名时刻相对当天 00:00 的小时数。解析失败返回 None。"""
+    t_str = extract_time_from_fits_filename(fits_path)
+    if not t_str:
+        return None
+    hh, mm, ss = t_str[11:13], t_str[14:16], t_str[17:19]
+    return int(hh) + int(mm) / 60.0 + int(ss) / 3600.0
+
+
+def hours_to_central_meridian(lon_deg, lat_deg):
+    """把 00:00 的日面经度外推到过日面中心的时刻（小时，可超出 0–24）。"""
+    rate = SYNODIC_DEG_PER_DAY * math.cos(math.radians(lat_deg))
+    if abs(rate) < 1e-6:
+        return 0.0
+    return -lon_deg / rate * 24.0
+
+
 def process_single_ar_anchor(args):
-    """处理单个活动区的锚点计算"""
+    """处理单个活动区的锚点计算。
+
+    种子是 SRS 里 |日面经度| 最小、且当天有磁图的那一天的位置。
+    在这一天的磁图里取最接近日面中心的一帧，用该帧时刻换成卡林顿坐标，
+    再做一次 ±80 像素重心。
+    """
     ar_num, info, date_to_ars, fits_by_date = args
-    
-    relevant_dates = sorted([d for d, ars in date_to_ars.items() if ar_num in ars])
-    relevant_fits = []
-    for d in relevant_dates:
-        if d in fits_by_date:
-            relevant_fits.extend(fits_by_date[d])
-    relevant_fits.sort()
-    
-    if not relevant_fits:
+
+    days = sorted(info.get('days', []), key=lambda item: (abs(item['lon']), item['date']))
+    chosen = None
+    day_fits = None
+    for day in days:
+        found = sorted(fits_by_date.get(day['date'], []))
+        if found:
+            chosen = day
+            day_fits = found
+            break
+
+    if chosen is None:
         return ar_num, None
-    
+
+    target_hours = hours_to_central_meridian(chosen['lon'], chosen['lat'])
+    best_frame = None
+    best_gap = None
+    for fits_path in day_fits:
+        hours = hours_from_midnight(fits_path)
+        if hours is None:
+            continue
+        gap = abs(hours - target_hours)
+        if best_gap is None or gap < best_gap:
+            best_gap = gap
+            best_frame = fits_path
+    if best_frame is None:
+        best_frame = day_fits[len(day_fits) // 2]
+
     try:
-        m0 = sunpy.map.Map(relevant_fits[0], memmap=True)
+        m0 = sunpy.map.Map(best_frame, memmap=True)
         p_stony = SkyCoord(
-            lon=info['lon']*u.deg, lat=info['lat']*u.deg,
+            lon=chosen['lon']*u.deg, lat=chosen['lat']*u.deg,
             frame=frames.HeliographicStonyhurst(obstime=m0.date)
         )
         p_carr = p_stony.transform_to(
             frames.HeliographicCarrington(obstime=m0.date, observer='earth')
         )
         carr_lon, carr_lat = p_carr.lon.deg, p_carr.lat.deg
-    except:
+    except Exception:
         return ar_num, None
-    
-    min_lon, best_frame = 999, None
-    stride = max(1, len(relevant_fits) // 20)
-    
-    for f in relevant_fits[::stride]:
-        try:
-            m = sunpy.map.Map(f, memmap=True)
-            pc = SkyCoord(
-                lon=carr_lon*u.deg, lat=carr_lat*u.deg,
-                frame=frames.HeliographicCarrington(obstime=m.date, observer='earth')
-            )
-            cur_lon = pc.transform_to(
-                frames.HeliographicStonyhurst(obstime=m.date)
-            ).lon.deg
-            
-            if abs(cur_lon) < min_lon:
-                min_lon, best_frame = abs(cur_lon), f
-            if min_lon < 5:
-                break
-        except:
-            continue
-    
-    if not best_frame:
-        best_frame = relevant_fits[len(relevant_fits)//2]
-    
+
     centroid = get_centroid_fast(best_frame, carr_lon, carr_lat)
-    
+
     result = {
         'carr_lon': float(centroid.lon.deg) if centroid else carr_lon,
         'carr_lat': float(centroid.lat.deg) if centroid else carr_lat,
+        'seed_date': chosen['date'],
+        'seed_lat': chosen['lat'],
+        'seed_lon': chosen['lon'],
+        'seed_frame': os.path.basename(best_frame),
     }
-    
+
     return ar_num, result
 
 def calculate_accurate_anchors(ar_raw_data, date_to_ars, fits_by_date):
@@ -331,8 +354,8 @@ def process_fits_batch(args_batch):
     
     return total_processed, total_skipped, cropped_ars
 
-def crop_active_regions(skip_existing=False):
-    """主函数"""
+def crop_active_regions(skip_existing=False, only_ars=None, output_root=None, max_workers=None):
+    """主函数。only_ars 给定时只裁这些编号，并只读它们出现过的日期。"""
     logger = setup_logging('step2_crop_regions')
     logger.info("="*60)
     logger.info("步骤2: 裁剪活动区域（多年份数据）- 开始")
@@ -341,18 +364,34 @@ def crop_active_regions(skip_existing=False):
         logger.info("增量模式: 跳过已存在的裁剪 FITS")
         print("增量模式: 跳过已存在的裁剪 FITS")
     
-    noaa_path = get_path('fits_600')
+    noaa_path = output_root or get_path('fits_600_raw')
     ensure_directory(noaa_path)
     
     # 读取多年份SRS报告
     print("读取多年份SRS报告...")
     ar_raw_data, date_to_ars = build_ar_reference_coords_raw_multi_year()
+    if only_ars:
+        only_ars = {str(ar) for ar in only_ars}
+        ar_raw_data = {ar: info for ar, info in ar_raw_data.items() if ar in only_ars}
+        date_to_ars = {
+            day: [ar for ar in ars if ar in only_ars]
+            for day, ars in date_to_ars.items()
+        }
+        date_to_ars = {day: ars for day, ars in date_to_ars.items() if ars}
+        missing = sorted(only_ars - set(ar_raw_data))
+        if missing:
+            print(f"SRS 第 I 部分没有这些编号: {', '.join(missing)}")
     print(f"找到 {len(ar_raw_data)} 个活动区")
     logger.info(f"找到 {len(ar_raw_data)} 个活动区")
     
     # 获取所有FITS文件
     print("扫描多年份FITS文件...")
     fits_files = get_all_fits_files()
+    if only_ars:
+        fits_files = [
+            path for path in fits_files
+            if (extract_time_from_fits_filename(path) or "")[:10].replace("-", "") in date_to_ars
+        ]
     print(f"找到 {len(fits_files)} 个FITS文件")
     logger.info(f"找到 {len(fits_files)} 个FITS文件")
     
@@ -365,6 +404,14 @@ def crop_active_regions(skip_existing=False):
     
     # 计算精确锚点
     ar_optimized_data = calculate_accurate_anchors(ar_raw_data, date_to_ars, fits_by_date)
+    for ar_num in sorted(ar_optimized_data, key=lambda x: int(x)):
+        info = ar_optimized_data[ar_num]
+        print(
+            f"  AR{ar_num}: 种子 {info.get('seed_date')} "
+            f"lat={info.get('seed_lat')} lon={info.get('seed_lon')} "
+            f"帧 {info.get('seed_frame')} "
+            f"-> Carrington ({info['carr_lon']:.3f}, {info['carr_lat']:.3f})"
+        )
     
     # 准备多进程参数
     global_params = {
@@ -376,7 +423,7 @@ def crop_active_regions(skip_existing=False):
     batch_size = PARAMS.get('preload_count', 20)
     batches = [fits_files[i:i + batch_size] for i in range(0, len(fits_files), batch_size)]
     
-    max_workers = PARAMS.get('max_workers', 12)
+    max_workers = max_workers or PARAMS.get('max_workers', 12)
     print(f"\n开始并行处理 (进程数={max_workers})...")
     logger.info(f"开始并行处理 (进程数={max_workers})")
     
@@ -412,5 +459,22 @@ if __name__ == '__main__':
         action='store_true',
         help='跳过已存在的裁剪 FITS 文件（增量补数）',
     )
+    parser.add_argument(
+        '--ars',
+        default=None,
+        help='只裁这些活动区，逗号分隔，例如 1302,1305',
+    )
+    parser.add_argument(
+        '--output',
+        default=None,
+        help='未旋转裁剪的输出根目录，默认 config 里的 fits_600_raw',
+    )
+    parser.add_argument('--workers', type=int, default=None)
     args = parser.parse_args()
-    crop_active_regions(skip_existing=args.skip_existing)
+    only_ars = [item.strip() for item in args.ars.split(',')] if args.ars else None
+    crop_active_regions(
+        skip_existing=args.skip_existing,
+        only_ars=only_ars,
+        output_root=args.output,
+        max_workers=args.workers,
+    )

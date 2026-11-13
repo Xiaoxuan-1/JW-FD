@@ -6,7 +6,7 @@
 每个 NOAA 区落入一个耀斑产能层（multiple X / single X / M5-not-X /
 M1-not-M5 / C-only / quiet），层内够大时再按过日面帧数三分位；
 候选种子须同时满足：val/test 各至少 5 个 X 与 5 个 M5 正样本区、
-24 h 正帧比在 [0.5, 2]、单区不超过该子集正帧的 25%、
+24 h 正帧比在 [0.5, 2]、验证集与测试集保持平衡、
 unsigned-flux 与 NL-length 的 val–test Cohen d < 0.30。
 
 冻结的 AR 成员名单见 ``split_v2_ar_membership.json``。

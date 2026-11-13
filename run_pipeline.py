@@ -14,8 +14,9 @@ os.makedirs(os.environ['TMPDIR'], exist_ok=True)
 
 流程说明:
   Step 1: 从NOAA事件文件提取耀斑标签
-  Step 2: 从HMI磁图裁剪活动区域 (600x600 FITS)
-  Step 3: 将FITS转换为PNG图像
+  Step 2: 从HMI磁图裁剪活动区域 (600x600 FITS，未旋转)
+  Step 2b: 将裁剪结果旋转 180°，写入 fits_600
+  Step 3: 将 rot180 后的 FITS 转为 PNG（只做上下翻转）
   Step 4: 从FITS提取特征生成数据集
   Step 5: 从PNG提取特征生成数据集
   Step 6: 生成活动区域演化视频
@@ -202,6 +203,11 @@ def run_pipeline_no_interaction(start_step=1, end_step=6, skip_existing=False):
             main_func = getattr(module, func_name, None)
             if main_func:
                 call_step(main_func, skip_existing=skip_existing)
+                if step_num == 2:
+                    print("【步骤 2b】FITS 旋转 180°")
+                    logger.info("开始执行步骤 2b: FITS 旋转 180°")
+                    call_step(__import__('step2b_rotate_fits').rotate_fits,
+                              skip_existing=skip_existing)
             else:
                 error_msg = f"错误: 模块 {module_name} 没有找到函数 {func_name}"
                 print(error_msg)
@@ -282,8 +288,8 @@ def print_usage():
 
 步骤说明:
   1. 提取耀斑标签    - 从NOAA事件文件提取耀斑记录
-  2. 裁剪活动区域    - 从HMI磁图裁剪600x600区域
-  3. 转换为PNG       - 将FITS转换为PNG图像
+  2. 裁剪活动区域    - 从HMI磁图裁剪600x600区域，并 rot180 写入 fits_600
+  3. 转换为PNG       - rot180 后的 FITS 转 PNG，只做上下翻转
   4. 生成FITS数据集  - 从FITS提取29维特征
   5. 生成PNG数据集   - 从PNG提取29维特征
   6. 生成视频        - 生成活动区域演化MP4视频

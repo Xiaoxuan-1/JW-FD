@@ -76,6 +76,7 @@ def make_movie_worker(args):
         return ar_name, True, len(png_files), duration, output_path
         
     except Exception as e:
+        print(f"AR{ar_name} 编码失败: {e}", flush=True)
         return ar_name, False, 0, 0, output_path
 
 

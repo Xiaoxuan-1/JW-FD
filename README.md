@@ -11,10 +11,10 @@
 | 版本 | 内容 | 获取方式 |
 |------|------|----------|
 | Zenodo **v1** | 约 10% 代表性子集 | [doi:10.5281/zenodo.21672850](https://doi.org/10.5281/zenodo.21672850) · [记录页](https://zenodo.org/records/21672850) |
-| Zenodo **v2** | 完整 15 年释放（同一条 Zenodo 记录） | 即将发布；DOI 签发后写在本 README |
+| ScienceDB **v2** | 完整 15 年释放 | [doi:10.57760/sciencedb.019mg](https://doi.org/10.57760/sciencedb.019mg) |
 | 百度网盘 | [分享链接](https://pan.baidu.com/s/1TxJPOqVKGdU2B8bkblL1XA)（提取码：`gmsm`） | 目前提供 v1 子集目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB |
 
-覆盖 **2011-01-01 至 2025-12-31**。PNG 默认工作点 **800 G**；十档饱和阈值 **200–2000 G，步长 200 G**。官方划分是活动区级 8:1:1 **分层拒绝采样，seed=3970**。冻结的 AR 成员名单见 [`split_v2_ar_membership.json`](split_v2_ar_membership.json)。
+覆盖 **2011-01-01 至 2025-12-31**。PNG 默认工作点 **800 G**；十档饱和阈值 **200–2000 G，步长 200 G**。官方划分是活动区级 8:1:1 **分层拒绝采样，seed=3970**，验证集和测试集保持平衡。冻结的 AR 成员名单见 [`split_v2_ar_membership.json`](split_v2_ar_membership.json)。名单不再重抽。X 级正样本少，单个活动区会占较大份额，记录见 [docs/split_seed_3970.md](docs/split_seed_3970.md)。
 
 Zenodo v1 分卷合包：
 
@@ -29,11 +29,14 @@ tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 | Step | 脚本 | 说明 |
 |------|------|------|
 | 1 | `step1_extract_flare_labels.py` | 从 NOAA Events（XRA）提取耀斑记录 → `flare_labels.csv`（含 Begin / Max / End 时间与等级） |
-| 2 | `step2_crop_active_regions.py` | 按 SRS 位置与 HMI 全日面 FITS 裁剪 **600×600** 活动区子图 |
-| 3 | `step3_convert_to_png.py` | 裁剪 FITS → PNG。左右翻转后按固定 ±B_th 定标（NaN→0 G，0 G→灰阶 127） |
+| 2 | `step2_crop_active_regions.py` | 按 SRS 位置与 HMI 全日面 FITS 裁剪 **600×600** 活动区子图，写到 `fits_600_raw`（未旋转）。起点是日面中心附近那一帧，见 [docs/crop_anchor.md](docs/crop_anchor.md) |
+| 2b | `step2b_rotate_fits.py` | 把 `fits_600_raw` 旋转 180° 写入 `fits_600`。HMI 全日面自带 180°，裁剪不改朝向 |
+| 3 | `step3_convert_to_png.py` | rot180 后的 FITS → PNG，只做上下翻转，再按固定 ±B_th 定标（NaN→0 G，0 G→灰阶 127） |
 | 4 | `step4_generate_dataset_fits.py` | 从 FITS 提取 **29 维**特征 + 标签 → `solar_flare_dataset_fits_{suffix}.csv` |
 | 5 | `step5_generate_dataset_png.py` | 从 PNG 提取特征 + 标签 → `solar_flare_dataset_png_{suffix}.csv` |
 | 6 | `step6_make_movie.py` | 按活动区 PNG 序列生成演化视频（`movies_600_Th{mag_threshold}`） |
+
+同一套脚本也在 `/data/Datasets/JW-FD-fixed/code/`。两边的 `config.py` 都把产出写到 `/data/Datasets/JW-FD-fixed`。`step2b --from-published` 指向已经移除的旧裁剪目录，不要用来重跑现行数据。2011 年 9 月磁图是隐藏文件名，处理经过见 [docs/hmi_hidden_201109.md](docs/hmi_hidden_201109.md)。
 
 入口：
 
@@ -117,7 +120,7 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 ## 仓库说明
 
 - 本仓库主要包含**代码**与官方 AR 名单；大体积数据、日志未纳入版本控制（见 [`.gitignore`](.gitignore)）。
-- 子集数据请见上方「数据发布」；完整 15 年数据将作为同一条 Zenodo 记录的 v2 发布。
+- 子集数据请见上方「数据发布」；完整 15 年数据是 ScienceDB v2：https://doi.org/10.57760/sciencedb.019mg
 
 ## 论文
 
@@ -131,7 +134,7 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 
 ## 引用
 
-若使用本仓库或 JW-FD 数据，请引用期刊论文；流水线方法亦可引用 SPIE 会议文。完整 15 年数据请等 v2 DOI 签发后再引用。
+若使用本仓库或 JW-FD 数据，请引用期刊论文；流水线方法亦可引用 SPIE 会议文。完整 15 年数据请同时引用 ScienceDB v2：https://doi.org/10.57760/sciencedb.019mg
 
 ```bibtex
 @article{Shao2026jwfd,
@@ -163,3 +166,4 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 - SPIE：https://doi.org/10.1117/12.3102831
 - 代码：https://github.com/Xiaoxuan-1/JW-FD
 - 数据（Zenodo v1，约 10% 子集）：https://doi.org/10.5281/zenodo.21672850
+- 数据（ScienceDB v2，完整 15 年）：https://doi.org/10.57760/sciencedb.019mg

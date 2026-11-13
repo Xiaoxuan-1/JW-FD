@@ -1,0 +1,8 @@
+{
+  "process": {
+    "compiler": "pdflatex"
+  },
+  "sources": [
+    { "filename": "jwfd.tex", "usage": "toplevel" }
+  ]
+}

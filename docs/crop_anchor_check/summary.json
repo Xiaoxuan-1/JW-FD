@@ -1,0 +1,412 @@
+[
+  {
+    "nmbr": "2192",
+    "group": "large",
+    "crowded": false,
+    "max_area": 2750,
+    "max_ll": 22,
+    "cm_date": "20141023",
+    "cm_sep_deg": 40.19,
+    "cm_neighbor": "2194",
+    "anchor": "hmi.m_720s.20141022_202400_TAI.1.magnetogram.fits",
+    "anchor_abs_lon": 4.03,
+    "rough_xy": [
+      2170,
+      2650
+    ],
+    "center_80": [
+      2192.98,
+      2650.06
+    ],
+    "center_250": [
+      2220.07,
+      2647.37
+    ],
+    "shift_80_px": 23.0,
+    "shift_250_px": 50.1,
+    "delta_px": 27.2,
+    "reject_250": false,
+    "npix_80": 18770,
+    "npix_250": 107281,
+    "dist_bulk_80": 133.9,
+    "dist_bulk_250": 106.7,
+    "flux_frac_80": 0.742,
+    "flux_frac_250": 0.81,
+    "cc_vs_250_px": 9.2,
+    "nearest_px": 919.2,
+    "nearest_deg": 41.02,
+    "nearest_nmbr": "2193",
+    "srs_today_vs_track_px": 475.3,
+    "cdelt": 0.504359,
+    "figure": "figures/AR2192.png"
+  },
+  {
+    "nmbr": "1339",
+    "group": "large",
+    "crowded": false,
+    "max_area": 1540,
+    "max_ll": 17,
+    "cm_date": "20111108",
+    "cm_sep_deg": 34.87,
+    "cm_neighbor": "1338",
+    "anchor": "hmi.m_720s.20111107_124800_TAI.1.magnetogram.fits",
+    "anchor_abs_lon": 1.96,
+    "rough_xy": [
+      1979,
+      1442
+    ],
+    "center_80": [
+      1960.65,
+      1442.84
+    ],
+    "center_250": [
+      2172.31,
+      1464.19
+    ],
+    "shift_80_px": 18.4,
+    "shift_250_px": 194.6,
+    "delta_px": 212.7,
+    "reject_250": true,
+    "npix_80": 373,
+    "npix_250": 17781,
+    "dist_bulk_80": 285.1,
+    "dist_bulk_250": 79.7,
+    "flux_frac_80": 0.399,
+    "flux_frac_250": 0.895,
+    "cc_vs_250_px": 217.3,
+    "nearest_px": 1199.1,
+    "nearest_deg": 38.46,
+    "nearest_nmbr": "1338",
+    "srs_today_vs_track_px": 683.2,
+    "cdelt": 0.504283,
+    "figure": "figures/AR1339.png"
+  },
+  {
+    "nmbr": "1520",
+    "group": "large",
+    "crowded": false,
+    "max_area": 1460,
+    "max_ll": 23,
+    "cm_date": "20120712",
+    "cm_sep_deg": 13.24,
+    "cm_neighbor": "1521",
+    "anchor": "hmi.m_720s.20120711_171200_TAI.1.magnetogram.fits",
+    "anchor_abs_lon": 4.81,
+    "rough_xy": [
+      2188,
+      2664
+    ],
+    "center_80": [
+      2208.84,
+      2656.75
+    ],
+    "center_250": [
+      2243.63,
+      2699.89
+    ],
+    "shift_80_px": 22.1,
+    "shift_250_px": 66.2,
+    "delta_px": 55.4,
+    "reject_250": false,
+    "npix_80": 9715,
+    "npix_250": 69506,
+    "dist_bulk_80": 163.5,
+    "dist_bulk_250": 134.6,
+    "flux_frac_80": 0.795,
+    "flux_frac_250": 0.872,
+    "cc_vs_250_px": 91.4,
+    "nearest_px": 212.0,
+    "nearest_deg": 14.53,
+    "nearest_nmbr": "1521",
+    "srs_today_vs_track_px": 436.2,
+    "cdelt": 0.504356,
+    "figure": "figures/AR1520.png"
+  },
+  {
+    "nmbr": "3014",
+    "group": "large",
+    "crowded": true,
+    "max_area": 1190,
+    "max_ll": 13,
+    "cm_date": "20220520",
+    "cm_sep_deg": 8.49,
+    "cm_neighbor": "3015",
+    "anchor": "hmi.m_720s.20220520_033600_TAI.3.magnetogram.fits",
+    "anchor_abs_lon": 1.89,
+    "rough_xy": [
+      1978,
+      1310
+    ],
+    "center_80": [
+      1998.04,
+      1284.69
+    ],
+    "center_250": [
+      2066.8,
+      1332.23
+    ],
+    "shift_80_px": 32.3,
+    "shift_250_px": 91.5,
+    "delta_px": 83.6,
+    "reject_250": false,
+    "npix_80": 8250,
+    "npix_250": 55154,
+    "dist_bulk_80": 75.8,
+    "dist_bulk_250": 43.8,
+    "flux_frac_80": 0.886,
+    "flux_frac_250": 0.895,
+    "cc_vs_250_px": 57.0,
+    "nearest_px": 235.9,
+    "nearest_deg": 8.49,
+    "nearest_nmbr": "3015",
+    "srs_today_vs_track_px": 183.1,
+    "cdelt": 0.504039,
+    "figure": "figures/AR3014.png"
+  },
+  {
+    "nmbr": "3354",
+    "group": "large",
+    "crowded": true,
+    "max_area": 1150,
+    "max_ll": 18,
+    "cm_date": "20230629",
+    "cm_sep_deg": 8.47,
+    "cm_neighbor": "3351",
+    "anchor": "hmi.m_720s.20230628_182400_TAI.3.magnetogram.fits",
+    "anchor_abs_lon": 0.62,
+    "rough_xy": [
+      2055,
+      1647
+    ],
+    "center_80": [
+      2055.72,
+      1666.17
+    ],
+    "center_250": [
+      2066.42,
+      1654.53
+    ],
+    "shift_80_px": 19.2,
+    "shift_250_px": 13.7,
+    "delta_px": 15.8,
+    "reject_250": false,
+    "npix_80": 16304,
+    "npix_250": 61317,
+    "dist_bulk_80": 7.1,
+    "dist_bulk_250": 18.8,
+    "flux_frac_80": 0.978,
+    "flux_frac_250": 0.977,
+    "cc_vs_250_px": 68.0,
+    "nearest_px": 208.1,
+    "nearest_deg": 7.6,
+    "nearest_nmbr": "3351",
+    "srs_today_vs_track_px": 327.8,
+    "cdelt": 0.504044,
+    "figure": "figures/AR3354.png"
+  },
+  {
+    "nmbr": "1181",
+    "group": "small",
+    "crowded": false,
+    "max_area": 20,
+    "max_ll": 2,
+    "cm_date": "20110331",
+    "cm_sep_deg": 17.4,
+    "cm_neighbor": "1178",
+    "anchor": "hmi.m_720s.20110331_051200_TAI.1.magnetogram.fits",
+    "anchor_abs_lon": 0.2,
+    "rough_xy": [
+      2045,
+      2651
+    ],
+    "center_80": [
+      2067.57,
+      2657.3
+    ],
+    "center_250": [
+      2115.46,
+      2705.98
+    ],
+    "shift_80_px": 23.4,
+    "shift_250_px": 89.4,
+    "delta_px": 68.3,
+    "reject_250": false,
+    "npix_80": 1363,
+    "npix_250": 8020,
+    "dist_bulk_80": 151.5,
+    "dist_bulk_250": 84.6,
+    "flux_frac_80": 0.645,
+    "flux_frac_250": 0.732,
+    "cc_vs_250_px": 88.3,
+    "nearest_px": 411.3,
+    "nearest_deg": 17.4,
+    "nearest_nmbr": "1178",
+    "srs_today_vs_track_px": 177.2,
+    "cdelt": 0.504289,
+    "figure": "figures/AR1181.png"
+  },
+  {
+    "nmbr": "1427",
+    "group": "small",
+    "crowded": false,
+    "max_area": 20,
+    "max_ll": 2,
+    "cm_date": "20120302",
+    "cm_sep_deg": 19.33,
+    "cm_neighbor": "1423",
+    "anchor": "hmi.m_720s.20120302_000000_TAI.1.magnetogram.fits",
+    "anchor_abs_lon": 1.0,
+    "rough_xy": [
+      2007,
+      1317
+    ],
+    "center_80": [
+      1997.31,
+      1321.91
+    ],
+    "center_250": [
+      1990.24,
+      1380.91
+    ],
+    "shift_80_px": 10.9,
+    "shift_250_px": 66.1,
+    "delta_px": 59.4,
+    "reject_250": false,
+    "npix_80": 7864,
+    "npix_250": 26306,
+    "dist_bulk_80": 52.0,
+    "dist_bulk_250": 22.0,
+    "flux_frac_80": 0.839,
+    "flux_frac_250": 0.829,
+    "cc_vs_250_px": 66.1,
+    "nearest_px": 629.7,
+    "nearest_deg": 19.33,
+    "nearest_nmbr": "1423",
+    "srs_today_vs_track_px": 0.6,
+    "cdelt": 0.504289,
+    "figure": "figures/AR1427.png"
+  },
+  {
+    "nmbr": "1717",
+    "group": "small",
+    "crowded": false,
+    "max_area": 20,
+    "max_ll": 5,
+    "cm_date": "20130411",
+    "cm_sep_deg": 24.41,
+    "cm_neighbor": "1719",
+    "anchor": "hmi.m_720s.20130411_011200_TAI.1.magnetogram.fits",
+    "anchor_abs_lon": 0.65,
+    "rough_xy": [
+      2016,
+      2186
+    ],
+    "center_80": [
+      2006.02,
+      2217.0
+    ],
+    "center_250": [
+      1991.14,
+      2216.35
+    ],
+    "shift_80_px": 32.6,
+    "shift_250_px": 39.2,
+    "delta_px": 14.9,
+    "reject_250": false,
+    "npix_80": 2092,
+    "npix_250": 6206,
+    "dist_bulk_80": 51.6,
+    "dist_bulk_250": 44.9,
+    "flux_frac_80": 0.626,
+    "flux_frac_250": 0.629,
+    "cc_vs_250_px": 45.9,
+    "nearest_px": 789.9,
+    "nearest_deg": 24.41,
+    "nearest_nmbr": "1719",
+    "srs_today_vs_track_px": 10.8,
+    "cdelt": 0.504316,
+    "figure": "figures/AR1717.png"
+  },
+  {
+    "nmbr": "1255",
+    "group": "small",
+    "crowded": true,
+    "max_area": 20,
+    "max_ll": 3,
+    "cm_date": "20110719",
+    "cm_sep_deg": 9.0,
+    "cm_neighbor": "1256",
+    "anchor": "hmi.m_720s.20110718_044800_TAI.1.magnetogram.fits",
+    "anchor_abs_lon": 2.65,
+    "rough_xy": [
+      2119,
+      1648
+    ],
+    "center_80": [
+      2152.68,
+      1635.2
+    ],
+    "center_250": [
+      2119.63,
+      1604.43
+    ],
+    "shift_80_px": 36.0,
+    "shift_250_px": 43.6,
+    "delta_px": 45.2,
+    "reject_250": false,
+    "npix_80": 5811,
+    "npix_250": 25505,
+    "dist_bulk_80": 133.1,
+    "dist_bulk_250": 137.5,
+    "flux_frac_80": 0.853,
+    "flux_frac_250": 0.825,
+    "cc_vs_250_px": 34.9,
+    "nearest_px": 295.8,
+    "nearest_deg": 9.0,
+    "nearest_nmbr": "1256",
+    "srs_today_vs_track_px": 138.7,
+    "cdelt": 0.504322,
+    "figure": "figures/AR1255.png"
+  },
+  {
+    "nmbr": "1426",
+    "group": "small",
+    "crowded": true,
+    "max_area": 20,
+    "max_ll": 4,
+    "cm_date": "20120228",
+    "cm_sep_deg": 8.0,
+    "cm_neighbor": "1425",
+    "anchor": "hmi.m_720s.20120227_142400_TAI.1.magnetogram.fits",
+    "anchor_abs_lon": 4.1,
+    "rough_xy": [
+      2176,
+      1477
+    ],
+    "center_80": [
+      2176.09,
+      1453.71
+    ],
+    "center_250": [
+      2181.64,
+      1438.41
+    ],
+    "shift_80_px": 23.3,
+    "shift_250_px": 39.0,
+    "delta_px": 16.3,
+    "reject_250": false,
+    "npix_80": 3305,
+    "npix_250": 8357,
+    "dist_bulk_80": 57.7,
+    "dist_bulk_250": 61.0,
+    "flux_frac_80": 0.754,
+    "flux_frac_250": 0.771,
+    "cc_vs_250_px": 29.1,
+    "nearest_px": 347.0,
+    "nearest_deg": 8.0,
+    "nearest_nmbr": "1425",
+    "srs_today_vs_track_px": 259.2,
+    "cdelt": 0.504298,
+    "figure": "figures/AR1426.png"
+  }
+]

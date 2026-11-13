@@ -3,10 +3,23 @@
 步骤4: 从FITS文件提取特征并生成数据集
 输入: FITS文件 + 耀斑标签
 输出: CSV数据集文件
+
+修正版说明:
+  - 特征提取改用 extract_all_features_fits（NaN 填充与零点处理都封装在其中）
+  - 输出到 {OUTPUT_PATH}/label/fits/，文件名不带 Th 后缀：
+    FITS 特征在原始高斯值上计算，与 mag_threshold 无关。
+
+注意：BLAS 线程数必须在 numpy 加载前设置才生效（fork 出的子进程继承父进程
+已初始化的线程池），故统一放在模块顶部、任何科学计算库导入之前。
 """
 
-import argparse
 import os
+
+for _var in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS',
+             'OPENBLAS_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
+    os.environ.setdefault(_var, '1')
+
+import argparse
 import gc
 import csv
 from astropy.io import fits
@@ -23,7 +36,7 @@ from config import (
     END_YEAR,
     year_in_range,
     get_path,
-    get_output_suffix,
+    get_output_suffix_fits,
     get_prediction_hours_list,
 )
 from utils import (
@@ -31,9 +44,10 @@ from utils import (
     compare_labels,
     label_meets_threshold,
     extract_year_from_filename,
+    ensure_directory,
     load_existing_csv_column,
 )
-from feature_extraction import extract_all_features
+from feature_extraction import extract_all_features_fits
 
 # 全局变量
 _global_params = None
@@ -152,7 +166,7 @@ def process_batch(batch):
             import warnings
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
-                features = extract_all_features(magnetogram)
+                features = extract_all_features_fits(magnetogram)
                 
                 # 记录numpy计算警告
                 for warning in w:
@@ -186,14 +200,22 @@ def build_csv_headers(prediction_hours_list):
     return FEATURE_NAMES + flare_label_cols + flare_class_cols + ['image_filename', 'image_path']
 
 
-def generate_dataset(skip_existing=False):
+def get_fits_csv_path():
+    """FITS 数据集 CSV 路径：{OUTPUT_PATH}/label/fits/（文件名不带 Th）。"""
+    csv_dir = os.path.join(OUTPUT_PATH, 'label', 'fits')
+    ensure_directory(csv_dir)
+    return os.path.join(csv_dir, f'solar_flare_dataset_fits_{get_output_suffix_fits()}.csv')
+
+
+def generate_dataset(skip_existing=False, output_csv=None, only_ars=None):
     """主函数：提取特征并生成数据集"""
     logger = setup_logging('step4_generate_dataset_fits')
     logger.info("开始生成FITS数据集...")
 
     fits_folder = get_path('fits_600')
-    suffix = get_output_suffix()
-    output_csv = f"{OUTPUT_PATH}/solar_flare_dataset_fits_{suffix}.csv"
+    suffix = get_output_suffix_fits()
+    if output_csv is None:
+        output_csv = get_fits_csv_path()
 
     logger.info(f"参数配置: {suffix}")
     logger.info(f"输出文件: {output_csv}")
@@ -204,8 +226,13 @@ def generate_dataset(skip_existing=False):
     flare_records = load_flare_labels()
     logger.info(f"加载了{len(flare_records)}个耀斑标签")
 
+    only_ars = {str(ar) for ar in only_ars} if only_ars else None
     fits_files = []
     for root, dirs, files in os.walk(fits_folder):
+        if only_ars and os.path.abspath(root) == os.path.abspath(fits_folder):
+            dirs[:] = [name for name in dirs if name in only_ars]
+        elif only_ars and os.path.basename(root) not in only_ars:
+            continue
         for file in files:
             if file.endswith('.fits'):
                 fits_files.append(os.path.join(root, file))
@@ -315,5 +342,12 @@ if __name__ == '__main__':
         action='store_true',
         help='仅处理 CSV 中缺失的 FITS，追加到文件末尾',
     )
+    parser.add_argument(
+        '--output-csv',
+        default=None,
+        help='输出 CSV 路径（默认 {OUTPUT_PATH}/label/fits/solar_flare_dataset_fits_Lat60_Lon60.csv）',
+    )
+    parser.add_argument('--ars', default=None, help='只处理这些活动区，逗号分隔')
     args = parser.parse_args()
-    generate_dataset(skip_existing=args.skip_existing)
+    only_ars = [item.strip() for item in args.ars.split(',')] if args.ars else None
+    generate_dataset(skip_existing=args.skip_existing, output_csv=args.output_csv, only_ars=only_ars)

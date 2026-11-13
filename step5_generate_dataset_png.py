@@ -3,10 +3,22 @@
 步骤5: 从PNG图像提取特征并生成数据集
 输入: PNG图像文件 + 耀斑标签
 输出: CSV数据集文件
+
+修正版说明:
+  - 特征提取改用 extract_all_features_png（零点 127 的平移封装在其中）
+  - PNG 目录取自 config.get_png_dir(PARAMS['mag_threshold'])
+
+注意：BLAS 线程数必须在 numpy 加载前设置才生效（fork 出的子进程继承父进程
+已初始化的线程池），故统一放在模块顶部、任何科学计算库导入之前。
 """
 
-import argparse
 import os
+
+for _var in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS',
+             'OPENBLAS_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
+    os.environ.setdefault(_var, '1')
+
+import argparse
 import gc
 import csv
 import imageio.v2 as imageio
@@ -23,6 +35,7 @@ from config import (
     END_YEAR,
     year_in_range,
     get_path,
+    get_png_dir,
     get_output_suffix,
     get_prediction_hours_list,
 )
@@ -34,7 +47,7 @@ from utils import (
     ensure_directory,
     load_existing_csv_column,
 )
-from feature_extraction import extract_all_features
+from feature_extraction import extract_all_features_png
 
 # 全局变量
 _global_params = None
@@ -161,7 +174,7 @@ def process_batch(batch):
                 failed_files.append((img_path, "不支持的图像格式"))
                 continue
 
-            features = extract_all_features(gray_image)
+            features = extract_all_features_png(gray_image)
 
             image_filename = os.path.basename(img_path)
             flare_labels, flare_classes = get_flare_label(
@@ -181,20 +194,17 @@ def process_batch(batch):
     return results, failed_files
 
 
-def generate_dataset(skip_existing=False, output_csv=None):
+def generate_dataset(skip_existing=False, output_csv=None, only_ars=None):
     """主函数：提取特征并生成数据集"""
     logger = setup_logging('step5_generate_dataset_png')
     logger.info("开始生成PNG数据集...")
 
-    png_folder = get_path('png_600')
+    png_folder = get_png_dir(PARAMS['mag_threshold'])
     suffix = get_output_suffix()
     if output_csv is None:
-        output_csv = (
-            get_png_csv_path()
-            if skip_existing
-            else f"{OUTPUT_PATH}/solar_flare_dataset_png_{suffix}.csv"
-        )
+        output_csv = get_png_csv_path()
 
+    logger.info(f"PNG 目录: {png_folder}")
     logger.info(f"参数配置: {suffix}")
     logger.info(f"输出文件: {output_csv}")
     if skip_existing:
@@ -204,8 +214,13 @@ def generate_dataset(skip_existing=False, output_csv=None):
     flare_records = load_flare_labels()
     logger.info(f"加载了{len(flare_records)}个耀斑标签")
 
+    only_ars = {str(ar) for ar in only_ars} if only_ars else None
     png_files = []
     for root, dirs, files in os.walk(png_folder):
+        if only_ars and os.path.abspath(root) == os.path.abspath(png_folder):
+            dirs[:] = [name for name in dirs if name in only_ars]
+        elif only_ars and os.path.basename(root) not in only_ars:
+            continue
         for file in files:
             if file.endswith('.png'):
                 png_files.append(os.path.join(root, file))
@@ -321,7 +336,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--output-csv',
         default=None,
-        help='输出 CSV 路径（默认：增量模式用 label/png/Th{threshold}/，全量模式用 OUTPUT_PATH 根目录）',
+        help='输出 CSV 路径（默认 {OUTPUT_PATH}/label/png/Th{threshold}/solar_flare_dataset_png_Lat60_Lon60_Th{threshold}.csv）',
     )
+    parser.add_argument('--ars', default=None, help='只处理这些活动区，逗号分隔')
     args = parser.parse_args()
-    generate_dataset(skip_existing=args.skip_existing, output_csv=args.output_csv)
+    only_ars = [item.strip() for item in args.ars.split(',')] if args.ars else None
+    generate_dataset(skip_existing=args.skip_existing, output_csv=args.output_csv, only_ars=only_ars)

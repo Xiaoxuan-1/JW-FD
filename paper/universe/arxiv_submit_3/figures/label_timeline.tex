@@ -1,0 +1,47 @@
+% Pre-eruption label window: sample times (arrows) + positive window block
+\begin{figure}[H]
+\centering
+\small
+\begin{tikzpicture}[
+  x=1.0cm, y=0.65cm,
+  lbl/.style={font=\scriptsize},
+  arr/.style={-{Stealth[length=2mm]}, semithick}
+]
+  % Time axis
+  \draw[thick,->] (0,0) -- (12.2,0) node[right, lbl] {time};
+
+  % Boundary ticks (below axis)
+  \foreach \x/\t in {0/{$t_0$}, 4/{$\mathrm{Begin}-h$}, 8/{$\mathrm{Begin}$}, 11/{$t_1$}} {
+    \draw (\x,0.07) -- (\x,-0.07);
+    \node[lbl, below=3pt] at (\x,0) {\t};
+  }
+
+  % Begin boundary (open interval endpoint)
+  \draw[dashed, gray!60] (8,0.12) -- (8,1.10);
+
+  % Positive window block with label inside
+  \fill[blue!12] (4,0.18) rectangle (8,1.05);
+  \node[lbl, blue!60!black, align=center] at (6,0.62)
+    {positive window\\$[\mathrm{Begin}-h,\,\mathrm{Begin})$};
+
+  % Three example magnetogram times on the axis
+  \fill[red!70!black] (2.0,0) circle (1.7pt);
+  \fill[green!50!black] (6.0,0) circle (1.7pt);
+  \fill[orange!70!black] (10.0,0) circle (1.7pt);
+
+  % Arrows mark sample times; middle tip stops on the block top (not through the text)
+  \draw[arr, red!70!black] (2.0,1.85) -- (2.0,0.12);
+  \node[lbl, red!70!black, align=center, above=1pt] at (2.0,1.85)
+    {magnetogram at $t$\\label $= 0$};
+
+  \draw[arr, green!50!black] (6.0,2.05) -- (6.0,1.08);
+  \node[lbl, green!50!black, align=center, above=1pt] at (6.0,2.05)
+    {magnetogram at $t$\\label $= 1$ if flare $\geq\tau$};
+
+  \draw[arr, orange!70!black] (10.0,1.85) -- (10.0,0.12);
+  \node[lbl, orange!70!black, align=center, above=1pt] at (10.0,1.85)
+    {magnetogram at $t$\\label $= 0$ (after $\mathrm{Begin}$)};
+\end{tikzpicture}
+\caption{Pre-eruption labeling window for horizon~$h$. A magnetogram observed at time~$t$ receives a positive binary label for threshold~$\tau$ only if $t \in [\mathrm{Begin}-h,\,\mathrm{Begin})$ and the matched GOES class meets or exceeds~$\tau$. Observations at or after $\mathrm{Begin}$ (dashed line) are excluded from the positive class.}
+\label{fig:label_timeline}
+\end{figure}

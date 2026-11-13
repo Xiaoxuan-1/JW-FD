@@ -12,7 +12,9 @@ Pre-registered rules (frozen before any Mag_TH retraining):
 
 Gates:
   * val and test each have >= MIN_POS_ARS X-positive ARs and M5-positive ARs
-  * no AR holds > ALPHA of 24h positive frames in val or test (C1/M1/M5/X1)
+  * per-region 24h share check (ALPHA); kept here for the original search only.
+    The written split description does not use a percentage cap, and this
+    script is not re-run.
   * val/test 24h positive-frame ratio in [RATIO_LO, RATIO_HI] for C1/M1/M5/X1
   * |Cohen d| of AR-median unsigned flux and NL length (all ARs, val vs test) < D_MAX
 
