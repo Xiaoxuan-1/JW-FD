@@ -1,8 +1,7 @@
 # ⚠️ 必须在所有 import 之前设置！
 import os
-os.environ['TMPDIR'] = '/data/shaomf/tmp'
-os.environ['TEMP'] = '/data/shaomf/tmp'
-os.environ['TMP'] = '/data/shaomf/tmp'
+_tmpdir = os.environ.get('TMPDIR') or '/tmp'
+os.environ['TMPDIR'] = os.environ['TEMP'] = os.environ['TMP'] = _tmpdir
 
 # 确保目录存在
 os.makedirs(os.environ['TMPDIR'], exist_ok=True)
@@ -330,7 +329,6 @@ def print_usage():
   - 此版本不需要任何交互，适合后台运行
   - 如果某个步骤失败，会继续执行后续步骤
   - 所有输出都会记录到日志文件中
-  - 建议先运行 'python check_data_structure.py' 检查数据
 """)
 
 if __name__ == "__main__":

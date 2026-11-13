@@ -4,7 +4,7 @@
 
 本仓库是 Universe 论文的开源构建流水线：<https://github.com/Xiaoxuan-1/JW-FD>。
 
-论文：[JW-FD: A 15-Year Multimodal Dataset for Solar Flare Forecasting](https://doi.org/10.3390/universe12090281)（*Universe* 2026, 12, 281）
+论文：[JW-FD_V2: A 15-Year Multimodal Dataset for Solar Flare Forecasting](https://arxiv.org/abs/2608.19195)（arXiv:2608.19195）
 
 ## 数据发布
 
@@ -12,9 +12,8 @@
 |------|------|----------|
 | Zenodo **v1** | 约 10% 代表性子集 | [doi:10.5281/zenodo.21672850](https://doi.org/10.5281/zenodo.21672850) · [记录页](https://zenodo.org/records/21672850) |
 | ScienceDB **v2** | 完整 15 年释放 | [doi:10.57760/sciencedb.019mg](https://doi.org/10.57760/sciencedb.019mg) |
-| 百度网盘 | [分享链接](https://pan.baidu.com/s/1TxJPOqVKGdU2B8bkblL1XA)（提取码：`gmsm`） | 目前提供 v1 子集目录 `/JW-FD/JW-FD_subset_10pct/`，约 166 GB |
 
-覆盖 **2011-01-01 至 2025-12-31**。PNG 默认工作点 **800 G**；十档饱和阈值 **200–2000 G，步长 200 G**。官方划分是活动区级 8:1:1 **分层拒绝采样，seed=3970**，验证集和测试集保持平衡。冻结的 AR 成员名单见 [`split_v2_ar_membership.json`](split_v2_ar_membership.json)。名单不再重抽。X 级正样本少，单个活动区会占较大份额，记录见 [docs/split_seed_3970.md](docs/split_seed_3970.md)。
+覆盖 **2011-01-01 至 2025-12-31**。PNG 默认工作点 **800 G**；十档饱和阈值 **200–2000 G，步长 200 G**。官方划分是活动区级 8:1:1，seed=3970。冻结的 AR 成员名单见 [`split_v2_ar_membership.json`](split_v2_ar_membership.json)。
 
 Zenodo v1 分卷合包：
 
@@ -29,14 +28,12 @@ tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 | Step | 脚本 | 说明 |
 |------|------|------|
 | 1 | `step1_extract_flare_labels.py` | 从 NOAA Events（XRA）提取耀斑记录 → `flare_labels.csv`（含 Begin / Max / End 时间与等级） |
-| 2 | `step2_crop_active_regions.py` | 按 SRS 位置与 HMI 全日面 FITS 裁剪 **600×600** 活动区子图，写到 `fits_600_raw`（未旋转）。起点是日面中心附近那一帧，见 [docs/crop_anchor.md](docs/crop_anchor.md) |
+| 2 | `step2_crop_active_regions.py` | 按 SRS 位置与 HMI 全日面 FITS 裁剪 **600×600** 活动区子图，写到 `fits_600_raw`（未旋转）。起点是最靠近日面中心的一帧 |
 | 2b | `step2b_rotate_fits.py` | 把 `fits_600_raw` 旋转 180° 写入 `fits_600`。HMI 全日面自带 180°，裁剪不改朝向 |
 | 3 | `step3_convert_to_png.py` | rot180 后的 FITS → PNG，只做上下翻转，再按固定 ±B_th 定标（NaN→0 G，0 G→灰阶 127） |
 | 4 | `step4_generate_dataset_fits.py` | 从 FITS 提取 **29 维**特征 + 标签 → `solar_flare_dataset_fits_{suffix}.csv` |
 | 5 | `step5_generate_dataset_png.py` | 从 PNG 提取特征 + 标签 → `solar_flare_dataset_png_{suffix}.csv` |
 | 6 | `step6_make_movie.py` | 按活动区 PNG 序列生成演化视频（`movies_600_Th{mag_threshold}`） |
-
-同一套脚本也在 `/data/Datasets/JW-FD-fixed/code/`。两边的 `config.py` 都把产出写到 `/data/Datasets/JW-FD-fixed`。`step2b --from-published` 指向已经移除的旧裁剪目录，不要用来重跑现行数据。2011 年 9 月磁图是隐藏文件名，处理经过见 [docs/hmi_hidden_201109.md](docs/hmi_hidden_201109.md)。
 
 入口：
 
@@ -44,13 +41,14 @@ tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 - **交互菜单**：`python main_pipeline.py`
 - **多阈值增量**：`python batch_update_thresholds.py`（默认十档 + seed 3970 名单划分）
 
-## 环境依赖
+## 环境
 
-建议使用 Python 3.9+，典型依赖包括：
+```bash
+conda env create -f environment.yml
+conda activate JW-FD
+```
 
-`numpy`、`pandas`、`astropy`、`sunpy`、`tqdm`、`Pillow`、`scipy`、`scikit-image`、`imageio`（Step6 视频）等。请按本机环境安装；若 Step2 报 `sunpy` / `astropy` 相关导入错误，需检查二者版本是否匹配。
-
-`run_pipeline.py` / `main_pipeline.py` 开头将临时目录设为 `TMPDIR`（可按机器路径修改），需保证该目录可写。
+临时文件写到环境变量 `TMPDIR`。未设置时用 `/tmp`。
 
 ## 配置（[`config.py`](config.py)）
 
@@ -126,9 +124,11 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 
 | 稿件 | 链接 | 状态 |
 |------|------|------|
+| arXiv 最新版 | [JW-FD_V2: A 15-Year Multimodal Dataset for Solar Flare Forecasting](https://arxiv.org/abs/2608.19195) | arXiv:2608.19195 |
 | SPIE Proceedings（ATI 2026, 14155-94） | [doi:10.1117/12.3102831](https://doi.org/10.1117/12.3102831) | 已发表（Proc. SPIE **14155**, 2026-08-19） |
 | MDPI *Universe* | [doi:10.3390/universe12090281](https://doi.org/10.3390/universe12090281) | 已发表（*Universe* **2026**, 12(9), 281；2026-09-16） |
 
+- arXiv：[JW-FD_V2: A 15-Year Multimodal Dataset for Solar Flare Forecasting](https://arxiv.org/abs/2608.19195)
 - SPIE：[An end-to-end pipeline for multimodal solar flare forecasting dataset construction](https://www.spiedigitallibrary.org/conference-proceedings-of-spie/14155/3102831/An-end-to-end-pipeline-for-multimodal-solar-flare-forecasting/10.1117/12.3102831.full)
 - *Universe*：[JW-FD: A 15-Year Multimodal Dataset for Solar Flare Forecasting](https://www.mdpi.com/2218-1997/12/9/281)
 
@@ -137,6 +137,16 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 若使用本仓库或 JW-FD 数据，请引用期刊论文；流水线方法亦可引用 SPIE 会议文。完整 15 年数据请同时引用 ScienceDB v2：https://doi.org/10.57760/sciencedb.019mg
 
 ```bibtex
+@misc{Shao2026jwfdv2arxiv,
+  author        = {Shao, Mingfu and Lin, Jiaben and Wang, Hui and Tong, Liyue and Yang, Chen and Zhang, Yin and Li, Yuyang},
+  title         = {{JW-FD\_V2}: A 15-Year Multimodal Dataset for Solar Flare Forecasting},
+  year          = {2026},
+  eprint        = {2608.19195},
+  archivePrefix = {arXiv},
+  primaryClass  = {astro-ph.SR},
+  url           = {https://arxiv.org/abs/2608.19195}
+}
+
 @article{Shao2026jwfd,
   author  = {Shao, Mingfu and Lin, Jiaben and Wang, Hui and Tong, Liyue and Yang, Chen and Zhang, Yin and Li, Yuyang},
   title   = {{JW-FD}: A 15-Year Multimodal Dataset for Solar Flare Forecasting},
@@ -162,6 +172,7 @@ nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 }
 ```
 
+- arXiv（JW-FD_V2）：https://arxiv.org/abs/2608.19195
 - *Universe*：https://doi.org/10.3390/universe12090281
 - SPIE：https://doi.org/10.1117/12.3102831
 - 代码：https://github.com/Xiaoxuan-1/JW-FD

@@ -1,8 +1,7 @@
 # ⚠️ 必须在所有 import 之前设置！
 import os
-os.environ['TMPDIR'] = '/data/shaomf/tmp'
-os.environ['TEMP'] = '/data/shaomf/tmp'
-os.environ['TMP'] = '/data/shaomf/tmp'
+_tmpdir = os.environ.get('TMPDIR') or '/tmp'
+os.environ['TMPDIR'] = os.environ['TEMP'] = os.environ['TMP'] = _tmpdir
 
 # 确保目录存在
 os.makedirs(os.environ['TMPDIR'], exist_ok=True)
@@ -158,9 +157,6 @@ def run_pipeline(start_step=1, end_step=6, skip_inspection=False, skip_existing=
     if not skip_inspection:
         print("\n【数据完整性检测】")
         print("-" * 50)
-        print("提示: 运行 'python check_data_structure.py' 检查数据完整性")
-        print()
-        
         response = input("是否继续执行流水线? (y/n): ")
         if response.lower() != 'y':
             print("流水线执行取消")
@@ -242,9 +238,6 @@ def print_usage():
   4. 生成FITS数据集  - 从FITS提取29维特征
   5. 生成PNG数据集   - 从PNG提取29维特征
   6. 生成视频        - 生成活动区域演化MP4视频
-
-数据检测:
-  运行 'python check_data_structure.py' 检查数据完整性
 
 选项:
   --skip-inspection  跳过数据完整性检测

@@ -25,9 +25,8 @@ import sys
 import time
 from datetime import datetime
 
-os.environ['TMPDIR'] = '/data/shaomf/tmp'
-os.environ['TEMP'] = '/data/shaomf/tmp'
-os.environ['TMP'] = '/data/shaomf/tmp'
+_tmpdir = os.environ.get('TMPDIR') or '/tmp'
+os.environ['TMPDIR'] = os.environ['TEMP'] = os.environ['TMP'] = _tmpdir
 os.makedirs(os.environ['TMPDIR'], exist_ok=True)
 
 # 与各 step 模块保持一致：必须早于 numpy/scipy 加载

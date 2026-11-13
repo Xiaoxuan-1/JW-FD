@@ -1,0 +1,18 @@
+name: JW-FD
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - numpy==1.26.4
+      - pandas==2.2.0
+      - astropy==7.0.1
+      - sunpy==6.1.1
+      - tqdm==4.65.0
+      - pillow==10.2.0
+      - scipy==1.10.1
+      - scikit-image==0.22.0
+      - imageio==2.37.0
+      - imageio-ffmpeg==0.6.0
+      - PyWavelets==1.8.0
