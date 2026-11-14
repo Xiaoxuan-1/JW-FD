@@ -29,7 +29,7 @@ tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 
 | Step | 脚本 | 说明 |
 |------|------|------|
-| 1 | `step1_extract_flare_labels.py` | 从 NOAA Events（XRA）提取耀斑记录 → `flare_labels.csv`（含 Begin / Max / End 时间与等级） |
+| 1 | `step1_extract_flare_labels.py` | 从 NOAA Events（XRA）提取耀斑记录 → `flare_labels.csv`（含 Begin / Max / End 时间与等级）。写出前套用 [`label_corrections.csv`](label_corrections.csv) |
 | 2 | `step2_crop_active_regions.py` | 按 SRS 位置与 HMI 全日面 FITS 裁剪 **600×600** 活动区子图，写到 `fits_600_raw`（未旋转）。起点是最靠近日面中心的一帧 |
 | 2b | `step2b_rotate_fits.py` | 把 `fits_600_raw` 旋转 180° 写入 `fits_600`。HMI 全日面自带 180°，裁剪不改朝向 |
 | 3 | `step3_convert_to_png.py` | rot180 后的 FITS → PNG，只做上下翻转，再按固定 ±B_th 定标（NaN→0 G，0 G→灰阶 127） |
@@ -116,6 +116,17 @@ python batch_update_thresholds.py
 # 后台示例
 nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 ```
+
+## 标签修正
+
+两次 SWPC 区号按 AIA 131 Å 的增亮中心改正。等级仍是公布的 GOES 等级。磁图和 seed 3970 的活动区划分不变。
+
+| 开始时间 | 事件 | 原区号 | 新区号 | 等级 |
+|------|------|--------|--------|------|
+| 2012-03-07 01:05 | 1930 | 1430 | 1429 | X1.3 |
+| 2024-03-23 00:58 | 7040 | 3614 | 3615 | X1.1 |
+
+修正表是 [`label_corrections.csv`](label_corrections.csv)。`step1_extract_flare_labels.py` 生成耀斑表时套用这两行。ScienceDB v2 的磁图和视频不变；改正后的 `flare_labels.csv` 与四张 Th800 表作为新版本另传。
 
 ## 仓库说明
 

@@ -1,240 +1,131 @@
 # -*- coding: utf-8 -*-
 """
-步骤1: 从NOAA事件文件中提取耀斑标签（支持多年份数据）
-输入: 多年份events文件夹 (2011-2024)
-输出: flare_labels.csv (耀斑标签列表，包含完整时间信息)
-格式: AR编号,开始时间,峰值时间,结束时间,耀斑等级
+步骤 1: 从 NOAA/SWPC 事件表提取耀斑标签。
+
+解析与发布目录相同：`+` 只表示关联报告，不决定是否保留；时间可带 B/A/U
+前缀或为 ////；跨年重复的事件文件按开始时间、等级、区号和观测站去重。
+C1.0 及以上写入 flare_labels.csv。`label_corrections.csv` 里的两次活动区
+归属在写出前套用，避免按 SWPC 原文重跑又改回去。
 """
 
-import os
-import re
 import csv
-import argparse
-from multiprocessing import Pool
-from tqdm import tqdm
-from config import PARAMS, get_path, get_events_folders
+import os
+
+import pandas as pd
+
+from config import END_YEAR, get_path
+from goes_events import load_xra
 from utils import setup_logging
 
-def parse_time(time_str):
-    """解析时间字符串，处理////的情况"""
-    if time_str == '////':
-        return None
-    return time_str
+# 磁图从 2011 年开始。耀斑表从 2010 年开始，与已发布的 flare_labels.csv 一致。
+CATALOG_START_YEAR = 2010
+CORRECTIONS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'label_corrections.csv')
+COLUMNS = [
+    'AR_Number', 'Begin_Time', 'Max_Time', 'End_Time', 'Flare_Class',
+    'Event', 'Plus', 'Obs', 'Begin_Qualifier', 'Begin_From', 'Source',
+]
 
-def process_single_event_file(file_path):
-    """
-    处理单个事件文件（worker函数）
-    
-    Args:
-        file_path: 事件文件路径
-    
-    Returns:
-        list: 该文件中提取的耀斑记录列表
-    """
-    results = []
-    
-    try:
-        # 读取文件内容
-        with open(file_path, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-        
-        # 提取日期
-        date_line = next((line for line in lines if line.startswith(':Date:')), None)
-        if not date_line:
-            return results
-            
-        date_str = date_line.split(':')[2].strip().replace(' ', '')
-        
-        # 提取含有XRA的行（X射线耀斑）
-        xra_lines = [line.strip() for line in lines if 'XRA' in line]
-        
-        for line in xra_lines:
-            # 分割行以提取各个字段
-            parts = line.split()
-            if len(parts) < 12:
-                continue
-            
-            # 提取时间信息 (Begin, Max, End)
-            try:
-                begin_time = parse_time(parts[2])
-                max_time = parse_time(parts[3])
-                end_time = parse_time(parts[4])
-                
-                # 如果Max时间缺失，跳过
-                if max_time is None:
-                    continue
-                
-                # 如果Begin或End缺失，使用Max时间代替
-                if begin_time is None:
-                    begin_time = max_time
-                if end_time is None:
-                    end_time = max_time
-                
-            except (IndexError, ValueError):
-                continue
-            
-            # 提取活动区域编号（最后一列）
-            reg = parts[-1]
-            
-            # 检查reg是否为四位数字
-            if not reg.isdigit() or len(reg) != 4:
-                continue
-            
-            # 提取耀斑等级
-            particulars = re.search(r'\b[C|M|X]\d\.\d\b', line)
-            if not particulars:
-                continue
-                
-            flare_class = particulars.group(0)
-            ar_number = f'AR{reg}'
-            
-            # 格式化时间戳 (添加秒数00)
-            begin_timestamp = f'{date_str}_{begin_time}00'
-            max_timestamp = f'{date_str}_{max_time}00'
-            end_timestamp = f'{date_str}_{end_time}00'
-            
-            # 保存为: [AR编号, 开始时间, 峰值时间, 结束时间, 耀斑等级]
-            result = [ar_number, begin_timestamp, max_timestamp, end_timestamp, flare_class]
-            results.append(result)
-    
-    except Exception as e:
-        # 静默处理错误，返回空列表
-        pass
-    
-    return results
+
+def _fmt(t) -> str:
+    return '' if pd.isna(t) else t.strftime('%Y%m%d_%H%M%S')
+
+
+def apply_corrections(frame: pd.DataFrame, path: str = CORRECTIONS) -> pd.DataFrame:
+    """把修正表里的区号套到唯一匹配的事件上。匹配不到或多于一条就停止。"""
+    corrections = pd.read_csv(path, dtype=str)
+    out = frame.copy()
+    for row in corrections.itertuples(index=False):
+        mask = (
+            (out['Begin_Time'] == row.Begin_Time)
+            & (out['Event'].astype(str) == str(row.Event))
+            & (out['Flare_Class'] == row.Flare_Class)
+            & (out['AR_Number'] == row.Old_AR)
+        )
+        # 重复运行时这一行已经是新区号，按新区号再认一次。
+        already = (
+            (out['Begin_Time'] == row.Begin_Time)
+            & (out['Event'].astype(str) == str(row.Event))
+            & (out['Flare_Class'] == row.Flare_Class)
+            & (out['AR_Number'] == row.New_AR)
+        )
+        n_old, n_new = int(mask.sum()), int(already.sum())
+        if n_old == 1 and n_new == 0:
+            out.loc[mask, 'AR_Number'] = row.New_AR
+        elif n_old == 0 and n_new == 1:
+            continue
+        else:
+            raise RuntimeError(
+                f'{row.Begin_Time} 事件 {row.Event} 匹配到 {n_old} 条旧区号、{n_new} 条新区号'
+            )
+    return out
+
+
+def build_catalog(labels_root: str) -> pd.DataFrame:
+    years = range(CATALOG_START_YEAR, END_YEAR + 1)
+    raw, stats = load_xra(labels_root, years)
+    if stats['unparsed_lines']:
+        raise RuntimeError(f'{stats["unparsed_lines"]} 行 XRA 没有解析出来')
+    raw = raw[raw['flux_cls'] >= 1e-6].copy()
+    frame = pd.DataFrame({
+        'AR_Number': raw['reg'].map(lambda r: f'AR{r}' if r else ''),
+        'Begin_Time': raw['begin'].map(_fmt),
+        'Max_Time': raw['max'].map(_fmt),
+        'End_Time': raw['end'].map(_fmt),
+        'Flare_Class': raw['cls'],
+        'Event': raw['event'].astype(int).astype(str),
+        'Plus': raw['plus'].astype(int).astype(str),
+        'Obs': raw['obs'],
+        'Begin_Qualifier': raw['begin_qualifier'],
+        'Begin_From': raw['begin_from'],
+        'Source': raw['source'],
+    })
+    return apply_corrections(frame)
+
 
 def extract_flare_labels(skip_existing=False):
-    """从事件文件中提取耀斑标签（支持多年份，支持多进程）"""
+    """写出 flare_labels.csv。skip_existing 时不重读事件表，只套用修正表。"""
     logger = setup_logging('step1_flare_labels')
-    logger.info("开始提取耀斑标签（多年份数据）...")
-    if skip_existing:
-        logger.info("增量模式: 保留已有记录，仅追加新耀斑")
-        print("增量模式: 保留已有记录，仅追加新耀斑")
-
     output_csv_path = get_path('flare_labels')
-    existing_results = []
-    existing_keys = set()
     if skip_existing and os.path.exists(output_csv_path):
-        with open(output_csv_path, mode='r', newline='', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                rec = [
-                    row['AR_Number'],
-                    row['Begin_Time'],
-                    row['Max_Time'],
-                    row['End_Time'],
-                    row['Flare_Class'],
-                ]
-                existing_results.append(rec)
-                existing_keys.add(tuple(rec))
-        print(f"已有耀斑记录: {len(existing_results)} 条")
-        logger.info(f"已有耀斑记录: {len(existing_results)} 条")
-    
-    # 获取所有年份的events文件夹
-    events_folders = get_events_folders()
-    
-    if not events_folders:
-        print("未找到任何events文件夹")
-        logger.warning("未找到任何events文件夹")
-        return
-    
-    print(f"找到 {len(events_folders)} 个年份的events数据:")
-    for year, folder in events_folders:
-        print(f"  {year}: {folder}")
-        logger.info(f"  {year}: {folder}")
-    
-    # 收集所有事件文件
-    event_files = []
-    for year, folder_path in events_folders:
-        for filename in sorted(os.listdir(folder_path)):
-            if filename.endswith('.txt'):
-                file_path = os.path.join(folder_path, filename)
-                event_files.append(file_path)
-    
-    if not event_files:
-        print("未找到事件文件")
-        logger.warning("未找到事件文件")
-        return
-    
-    print(f"\n总共找到 {len(event_files)} 个事件文件")
-    logger.info(f"总共找到 {len(event_files)} 个事件文件")
-    
-    # 根据文件数量决定是否使用多进程
-    use_multiprocess = PARAMS.get('use_multiprocess', True) and len(event_files) >= 100
-    
-    all_results = []
-    
-    if use_multiprocess:
-        max_workers = min(PARAMS['max_workers'], len(event_files))
-        print(f"使用 {max_workers} 个进程并行处理...")
-        logger.info(f"使用 {max_workers} 个进程并行处理")
-        
-        with Pool(max_workers) as pool:
-            results_list = list(tqdm(
-                pool.imap_unordered(process_single_event_file, event_files),
-                total=len(event_files),
-                desc="提取耀斑标签"
-            ))
-        
-        # 合并所有结果
-        for results in results_list:
-            all_results.extend(results)
-    else:
-        # 单进程处理
-        print("使用单进程处理...")
-        for file_path in tqdm(event_files, desc="提取耀斑标签"):
-            results = process_single_event_file(file_path)
-            all_results.extend(results)
+        logger.info('增量模式: 保留已有记录，只套用活动区修正')
+        print('增量模式: 保留已有记录，只套用活动区修正')
+        existing = pd.read_csv(output_csv_path, dtype=str).fillna('')
+        corrected = apply_corrections(existing)
+        _write(corrected, output_csv_path)
+        print(f'步骤1完成: {len(corrected)} 条，已套用 label_corrections.csv')
+        return {'total': len(corrected), 'output_csv': output_csv_path}
 
-    new_results = []
-    if skip_existing:
-        for rec in all_results:
-            key = tuple(rec)
-            if key not in existing_keys:
-                new_results.append(rec)
-                existing_keys.add(key)
-        all_results = existing_results + new_results
-    else:
-        new_results = all_results
-
-    # 按峰值时间排序
-    all_results.sort(key=lambda x: x[2])
-
-    # 保存到CSV文件
-    with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.writer(csvfile)
-        # 写入表头
-        writer.writerow(['AR_Number', 'Begin_Time', 'Max_Time', 'End_Time', 'Flare_Class'])
-        # 写入数据
-        writer.writerows(all_results)
-
-    logger.info(
-        f'提取完成，共{len(all_results)}条耀斑记录'
-        + (f'（已有 {len(existing_results)}，新增 {len(new_results)}）' if skip_existing else '')
-    )
-    logger.info(f'保存到: {output_csv_path}')
-    if skip_existing:
-        print(
-            f'\n步骤1完成: 共 {len(all_results)} 条耀斑标签 '
-            f'(已有 {len(existing_results)}，新增 {len(new_results)})'
-        )
-    else:
-        print(f'\n步骤1完成: 提取了{len(all_results)}条耀斑标签')
-    print(f'格式: AR编号, 开始时间, 峰值时间, 结束时间, 耀斑等级')
+    logger.info('从 SWPC 事件表重建耀斑目录')
+    print('从 SWPC 事件表重建耀斑目录')
+    frame = build_catalog(get_path('labels_root'))
+    _write(frame, output_csv_path)
+    logger.info(f'提取完成，共 {len(frame)} 条，保存到 {output_csv_path}')
+    print(f'步骤1完成: {len(frame)} 条耀斑标签')
     print(f'保存到: {output_csv_path}')
-    return {
-        'existing': len(existing_results) if skip_existing else 0,
-        'appended': len(new_results),
-        'total': len(all_results),
-        'output_csv': output_csv_path,
-    }
+    return {'total': len(frame), 'output_csv': output_csv_path}
+
+
+def _write(frame: pd.DataFrame, path: str) -> None:
+    frame.to_csv(path, index=False, columns=COLUMNS, lineterminator='\n')
+
 
 if __name__ == '__main__':
+    import argparse
+
     parser = argparse.ArgumentParser(description='Step1: 从 NOAA events 提取耀斑标签')
     parser.add_argument(
         '--skip-existing',
         action='store_true',
-        help='保留已有 flare_labels.csv，仅追加新记录',
+        help='保留已有 flare_labels.csv，只套用 label_corrections.csv',
+    )
+    parser.add_argument(
+        '--output',
+        default='',
+        help='写到这个路径，而不是 config 里的 flare_labels.csv',
     )
     args = parser.parse_args()
-    extract_flare_labels(skip_existing=args.skip_existing)
+    if args.output:
+        _write(build_catalog(get_path('labels_root')), args.output)
+        print(f'保存到: {args.output}')
+    else:
+        extract_flare_labels(skip_existing=args.skip_existing)

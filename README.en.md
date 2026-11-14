@@ -29,7 +29,7 @@ tar -I zstd -xf JW-FD_subset_10pct.tar.zst
 
 | Step | Script | Description |
 |------|------|------|
-| 1 | `step1_extract_flare_labels.py` | Extract XRA flare records from NOAA Events into `flare_labels.csv` (begin, max, end, and class) |
+| 1 | `step1_extract_flare_labels.py` | Extract XRA flare records from NOAA Events into `flare_labels.csv` (begin, max, end, and class). [`label_corrections.csv`](label_corrections.csv) is applied before the file is written |
 | 2 | `step2_crop_active_regions.py` | Crop **600×600** patches from full-disk HMI FITS at the SRS location into unrotated `fits_600_raw`. The seed frame is the one closest to disk center |
 | 2b | `step2b_rotate_fits.py` | Rotate `fits_600_raw` by 180° into `fits_600`. Full-disk HMI is stored rotated; cropping does not change orientation |
 | 3 | `step3_convert_to_png.py` | PNG from the rotated FITS: a vertical flip, then a fixed ±B_th scale (NaN→0 G, 0 G→gray 127) |
@@ -116,6 +116,17 @@ python batch_update_thresholds.py
 # background
 nohup python run_pipeline.py 4 5 > pipeline_step45.log 2>&1 &
 ```
+
+## Label correction
+
+Two SWPC region numbers are corrected to the AIA 131 Å bright core. The GOES class is unchanged. Magnetograms and the seed-3970 active-region split are unchanged.
+
+| Begin | Event | Was | Now | Class |
+|------|------|--------|--------|------|
+| 2012-03-07 01:05 | 1930 | 1430 | 1429 | X1.3 |
+| 2024-03-23 00:58 | 7040 | 3614 | 3615 | X1.1 |
+
+The table is [`label_corrections.csv`](label_corrections.csv). `step1_extract_flare_labels.py` applies these two rows when it writes the flare catalog. The ScienceDB v2 magnetograms and movies stay as released. The corrected `flare_labels.csv` and the four Th800 tables are uploaded as a new version.
 
 ## What is in this repository
 
